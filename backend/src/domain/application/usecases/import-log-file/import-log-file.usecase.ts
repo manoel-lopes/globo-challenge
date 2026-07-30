@@ -68,7 +68,6 @@ export class ImportLogFileUseCase implements UseCase {
         checksum,
         sizeBytes: fileStats.size,
       })
-
       if (fileStats.size <= req.syncMaxBytes) {
         return this.processLogFileUseCase.execute({
           logFileId: logFile.id,
@@ -97,7 +96,7 @@ export class ImportLogFileUseCase implements UseCase {
     const hash = createHash('sha256')
     await pipeline(
       stream,
-      async function* teeChecksum (source: AsyncIterable<Buffer | string>) {
+      async function * teeChecksum (source: AsyncIterable<Buffer | string>) {
         for await (const chunk of source) {
           hash.update(chunk)
           yield chunk
