@@ -1,19 +1,28 @@
 import { Global, Module } from '@nestjs/common'
-import { UsersRepository } from '@/domain/application/repositories/users.repository'
+import { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
+import { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
 import { CacheModule } from '@/infra/cache/cache.module'
 import { PrismaModule } from '@/infra/persistence/prisma.module'
-import { PrismaUsersRepository } from './prisma/prisma-users.repository'
+import { CachedLogEntriesRepository } from './prisma/cached-log-entries.repository'
+import { PrismaLogEntriesRepository } from './prisma/prisma-log-entries.repository'
+import { PrismaLogFilesRepository } from './prisma/prisma-log-files.repository'
 
 @Global()
 @Module({
   imports: [CacheModule, PrismaModule],
   providers: [
-    PrismaUsersRepository,
+    PrismaLogFilesRepository,
     {
-      provide: UsersRepository,
-      useClass: PrismaUsersRepository,
+      provide: LogFilesRepository,
+      useClass: PrismaLogFilesRepository,
+    },
+    PrismaLogEntriesRepository,
+    CachedLogEntriesRepository,
+    {
+      provide: LogEntriesRepository,
+      useClass: CachedLogEntriesRepository,
     },
   ],
-  exports: [UsersRepository],
+  exports: [LogFilesRepository, LogEntriesRepository],
 })
 export class RepositoriesModule {}
