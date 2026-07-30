@@ -1,0 +1,5 @@
+{"level":"INFO","timestamp":"2024-01-01T10:00:00.000Z","service":"api-gateway","message":"Request started"}
+{"level":"ERROR","timestamp":"2024-01-01T10:00:01.000Z","service":"api-gateway","message":"Connection refused"}
+{"level":"WARN","timestamp":"2024-01-01T10:00:02.000Z","service":"worker","message":"Disk almost full"}
+{"level":"DEBUG","timestamp":"2024-01-01T10:00:03.000Z","service":"auth","message":"token validated","userId":"u-1"}
+plain line without level
