@@ -1,0 +1,269 @@
+{
+  "version": 2,
+  "skills": {
+    "coding-guidelines": {
+      "name": "coding-guidelines",
+      "source": "local",
+      "contentHash": "28a414c715d3c41aae28a25e2f109813ec3f246f76b5567c1e7d6a128cd289ff",
+      "installedAt": "2026-07-30T17:11:04.418Z",
+      "updatedAt": "2026-07-30T17:11:04.418Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "component-common-domain-detection": {
+      "name": "component-common-domain-detection",
+      "source": "local",
+      "contentHash": "58c72d63eaf387cf11ae36b223ff80478ba861f53265e42a3c4fbcb3bc739208",
+      "installedAt": "2026-07-30T17:11:04.427Z",
+      "updatedAt": "2026-07-30T17:11:04.427Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "component-flattening-analysis": {
+      "name": "component-flattening-analysis",
+      "source": "local",
+      "contentHash": "085696b944897a2d8c96efb6e0a3faab00f910a62a49a45c3293c32458962411",
+      "installedAt": "2026-07-30T17:11:04.437Z",
+      "updatedAt": "2026-07-30T17:11:04.437Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "component-identification-sizing": {
+      "name": "component-identification-sizing",
+      "source": "local",
+      "contentHash": "8ec5eb90e86cc84a346f15f50c86960d8f4ba6876f6fe27d687a1ba43a2448a0",
+      "installedAt": "2026-07-30T17:11:04.455Z",
+      "updatedAt": "2026-07-30T17:11:04.455Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "confluence-assistant": {
+      "name": "confluence-assistant",
+      "source": "local",
+      "contentHash": "b9f019173a7d864db1d0a9eca13ee920d294806ea4c5cabfb626ccaedbaaeae7",
+      "installedAt": "2026-07-30T17:11:04.463Z",
+      "updatedAt": "2026-07-30T17:11:04.463Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "coupling-analysis": {
+      "name": "coupling-analysis",
+      "source": "local",
+      "contentHash": "a33a142a73ac2e6b8db300acb3d13dba5077e225cbfad7599b0ac431290ab5c7",
+      "installedAt": "2026-07-30T17:11:04.489Z",
+      "updatedAt": "2026-07-30T17:11:04.489Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "create-adr": {
+      "name": "create-adr",
+      "source": "local",
+      "contentHash": "47ec663c849e8c1620c6f33a7be0055acdcf838c27ab7c16f44260244b80195a",
+      "installedAt": "2026-07-30T17:11:04.501Z",
+      "updatedAt": "2026-07-30T17:11:04.501Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "create-rfc": {
+      "name": "create-rfc",
+      "source": "local",
+      "contentHash": "3f391b6c4397bb1590bbad511eca95c297dd0467e65385fa28b3724851c42ea8",
+      "installedAt": "2026-07-30T17:11:04.511Z",
+      "updatedAt": "2026-07-30T17:11:04.511Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "cursor-subagent-creator": {
+      "name": "cursor-subagent-creator",
+      "source": "local",
+      "contentHash": "658a170d783a694e638814bed35a738184795da2d0f0b36489cac94a478cd8d7",
+      "installedAt": "2026-07-30T17:11:04.518Z",
+      "updatedAt": "2026-07-30T17:11:04.518Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "docs-writer": {
+      "name": "docs-writer",
+      "source": "local",
+      "contentHash": "c49827c59d2e27d313731dfd36314cfde0e8dbf15be0e8f813d2f8b751546b0c",
+      "installedAt": "2026-07-30T17:11:04.525Z",
+      "updatedAt": "2026-07-30T17:11:04.525Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "domain-analysis": {
+      "name": "domain-analysis",
+      "source": "local",
+      "contentHash": "5914beeaf1aa1fe57cd95cf0afb60ee1cccc58eedaddd123a43cad32d6a70077",
+      "installedAt": "2026-07-30T17:11:04.532Z",
+      "updatedAt": "2026-07-30T17:11:04.532Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "domain-identification-grouping": {
+      "name": "domain-identification-grouping",
+      "source": "local",
+      "contentHash": "ac3c94d9910a75aa6a61f7866507d16a3c646ff17e86b79667d1a19c6fa6c659",
+      "installedAt": "2026-07-30T17:11:04.538Z",
+      "updatedAt": "2026-07-30T17:11:04.538Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "nestjs-modular-monolith": {
+      "name": "nestjs-modular-monolith",
+      "source": "local",
+      "contentHash": "0bf9fee4b6a151866c38204557b13452feefb315b7d982a36c79125bcc3d076a",
+      "installedAt": "2026-07-30T17:11:04.562Z",
+      "updatedAt": "2026-07-30T17:11:04.562Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "security-best-practices": {
+      "name": "security-best-practices",
+      "source": "local",
+      "contentHash": "6fec09f7e43bb297ad6097e13469e85aa5b5d671a839b4f7e7871ef8eaa76c4e",
+      "installedAt": "2026-07-30T17:11:04.586Z",
+      "updatedAt": "2026-07-30T17:11:04.586Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "security-ownership-map": {
+      "name": "security-ownership-map",
+      "source": "local",
+      "contentHash": "d6231f21029bc14fc776dbef909f631a6b39d7d1b46b11b25dbfe51c51dd7141",
+      "installedAt": "2026-07-30T17:11:04.598Z",
+      "updatedAt": "2026-07-30T17:11:04.598Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "skill-architect": {
+      "name": "skill-architect",
+      "source": "local",
+      "contentHash": "349b256153447631c3ed356996c3a62fec52493d07ba75e37b12c458f9fbf6bb",
+      "installedAt": "2026-07-30T17:11:04.606Z",
+      "updatedAt": "2026-07-30T17:11:04.606Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "spec-driven-eval": {
+      "name": "spec-driven-eval",
+      "source": "local",
+      "contentHash": "168d6860c6e84809a02c2abface032a4a625bdd81fec6131615e00a2cf87e311",
+      "installedAt": "2026-07-30T17:11:04.613Z",
+      "updatedAt": "2026-07-30T17:11:04.613Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "subagent-creator": {
+      "name": "subagent-creator",
+      "source": "local",
+      "contentHash": "bef6b5a9f23b3186af259c1041c2561e9af15fa94810009d72d775bb217aa3ca",
+      "installedAt": "2026-07-30T17:11:04.618Z",
+      "updatedAt": "2026-07-30T17:11:04.618Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "tactical-ddd": {
+      "name": "tactical-ddd",
+      "source": "local",
+      "contentHash": "c3dfaf45e8cb784f18d9c460c7f005c4ee9dbb430f21ee8af6913bbfea66a75b",
+      "installedAt": "2026-07-30T17:11:04.624Z",
+      "updatedAt": "2026-07-30T17:11:04.624Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "technical-design-doc-creator": {
+      "name": "technical-design-doc-creator",
+      "source": "local",
+      "contentHash": "d05974df076f695f96b4e4c263ad19f2aaffe8ee6248c1b07a634dd9ed0ea51e",
+      "installedAt": "2026-07-30T17:11:04.638Z",
+      "updatedAt": "2026-07-30T17:11:04.638Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "the-fool": {
+      "name": "the-fool",
+      "source": "local",
+      "contentHash": "b761f983e21e00173ac42760f478095a3e8c733862c20d9f711d10d962f407cc",
+      "installedAt": "2026-07-30T17:11:04.658Z",
+      "updatedAt": "2026-07-30T17:11:04.658Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "tlc-spec-driven": {
+      "name": "tlc-spec-driven",
+      "source": "local",
+      "contentHash": "69867b0e19be1fb556d2e697f0f18f1de0363d1aa2de9d36754d5b107156357c",
+      "installedAt": "2026-07-30T17:11:04.685Z",
+      "updatedAt": "2026-07-30T17:11:04.685Z",
+      "agents": [
+        "cursor"
+      ],
+      "method": "copy",
+      "global": false
+    }
+  }
+}

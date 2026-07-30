@@ -1,0 +1,12 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: template_pg_test
+    ports:
+      - '${DB_PORT}:5432'
+    env_file:
+      - .env.test
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
