@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { AppModule } from './app.module'
 import { FastifyAdapter } from './infra/adapters/http/fastify-adapter'
 import { EnvService } from './infra/env/env.service'
+import { AllExceptionsFilter } from './infra/http/presentation/filters/all-exceptions.filter'
 
 async function bootstrap () {
   const fastifyAdapter = new FastifyAdapter()
@@ -12,12 +13,12 @@ async function bootstrap () {
     fastifyAdapter
   )
   await fastifyAdapter.configure(app)
+  app.useGlobalFilters(new AllExceptionsFilter())
   const envService = app.get(EnvService)
-  const nodeEnv = envService.get('NODE_ENV')
-  if (nodeEnv === 'development') {
+  if (envService.get('ENABLE_SWAGGER')) {
     const config = new DocumentBuilder()
-      .setTitle('Template API')
-      .setDescription('NestJS API Template with Clean Architecture')
+      .setTitle('Log Analysis Platform API')
+      .setDescription('Import, query, and analyze structured log data')
       .setVersion('1.0')
       .addBearerAuth()
       .build()
