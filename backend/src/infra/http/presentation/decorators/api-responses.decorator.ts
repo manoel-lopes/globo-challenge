@@ -49,6 +49,18 @@ export function ApiConflictResponse (description = 'Conflict - resource already 
   )
 }
 
+export function ApiPayloadTooLargeResponse (description = 'Payload too large - file exceeds the maximum allowed size') {
+  return applyDecorators(
+    ApiResponse({ status: 413, description })
+  )
+}
+
+export function ApiUnsupportedMediaTypeResponse (description = 'Unsupported media type') {
+  return applyDecorators(
+    ApiResponse({ status: 415, description })
+  )
+}
+
 export function ApiUnprocessableEntityResponse () {
   return applyDecorators(
     ApiResponse({ status: 422, description: 'Unprocessable entity - validation error' })
