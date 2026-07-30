@@ -9,6 +9,7 @@ dist/
 .env.development
 .env.test
 .env.production
+.env.loadtest
 
 # IDE
 .idea/
@@ -16,6 +17,7 @@ dist/
 
 # Logs
 *.log
+!loadtest/datasets/samples/**/*.log
 
 # Coverage
 coverage/
