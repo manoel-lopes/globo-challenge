@@ -1,0 +1,9 @@
+{
+  "name": "vitest-environment-prisma",
+  "version": "1.0.0",
+  "description": "Vitest environment that isolates each e2e file in its own Postgres schema",
+  "main": "prisma-test-environment.ts",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
