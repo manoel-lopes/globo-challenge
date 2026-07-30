@@ -1,19 +1,69 @@
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [pg_trgm]
 }
 
 generator client {
-  provider   = "prisma-client-js"
-  engineType = "library"
+  provider        = "prisma-client-js"
+  engineType      = "library"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
-model User {
+enum LogFileStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum LogLevel {
+  TRACE
+  DEBUG
+  INFO
+  WARN
+  ERROR
+  FATAL
+  UNKNOWN
+}
+
+model LogFile {
+  id             String        @id @default(uuid(7))
+  filename       String
+  status         LogFileStatus @default(PENDING)
+  checksum       String?
+  sizeBytes      Int?
+  totalLines     Int           @default(0)
+  processedLines Int           @default(0)
+  failedLines    Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @default(now()) @updatedAt
+  processedAt    DateTime?
+
+  entries LogEntry[]
+
+  @@index([checksum])
+  @@map("log_files")
+}
+
+model LogEntry {
   id        String   @id @default(uuid(7))
-  name      String
-  email     String   @unique
-  password  String
+  logFileId String
+  level     LogLevel
+  timestamp DateTime
+  source    String?
+  message   String
+  rawLine   String
+  metadata  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  @@map("users")
+  logFile LogFile @relation(fields: [logFileId], references: [id], onDelete: Cascade)
+
+  @@index([logFileId])
+  @@index([level, timestamp])
+  @@index([timestamp])
+  @@index([timestamp, id])
+  @@index([message(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([rawLine(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@map("log_entries")
 }
