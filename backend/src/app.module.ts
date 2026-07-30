@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { UseCasesModule } from './domain/application/usecases/usecases.module'
-import { SecurityModule } from './infra/adapters/security/security.module'
-import { AuthModule } from './infra/auth/auth.module'
 import { envSchema } from './infra/env/env'
 import { EnvModule } from './infra/env/env.module'
 import { ControllersModule } from './infra/http/presentation/controllers/controllers.module'
@@ -16,8 +14,6 @@ import { RepositoriesModule } from './infra/persistence/repositories/repositorie
     }),
     EnvModule,
     RepositoriesModule,
-    SecurityModule,
-    AuthModule,
     UseCasesModule,
     ControllersModule,
   ],
