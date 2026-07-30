@@ -1,0 +1,7 @@
+[2024-02-01T09:00:00Z] INFO checkout Order created
+{"level":"ERROR","timestamp":"2024-02-01T09:00:01.000Z","service":"payments","message":"Gateway timeout"}
+{"level":"WARN","timestamp":"2024-02-01T09:00:02.000Z",
+[2024-02-01T09:00:03Z] DEBUG checkout Cart recalculated
+!!!! ???? %%%% &&&&
+<<<truncated
+2024-02-01 09:00:04 payments 0x9fA3 0x00b1

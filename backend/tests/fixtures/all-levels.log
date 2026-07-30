@@ -1,0 +1,10 @@
+[2024-04-01T12:00:00Z] TRACE gateway entering handler
+[2024-04-01T12:00:01Z] DEBUG gateway cache lookup
+[2024-04-01T12:00:02Z] INFO gateway request accepted
+[2024-04-01T12:00:03Z] INFORMATION gateway alias normalized to INFO
+[2024-04-01T12:00:04Z] WARN gateway latency degraded
+[2024-04-01T12:00:05Z] WARNING gateway alias normalized to WARN
+[2024-04-01T12:00:06Z] ERROR gateway upstream failure
+[2024-04-01T12:00:07Z] ERR gateway alias normalized to ERROR
+[2024-04-01T12:00:08Z] FATAL gateway process aborted
+[2024-04-01T12:00:09Z] CRITICAL gateway alias normalized to FATAL

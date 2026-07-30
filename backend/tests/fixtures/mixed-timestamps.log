@@ -1,0 +1,6 @@
+[2024-03-15T08:30:00-03:00] INFO api offset aware timestamp
+{"level":"WARN","timestamp":1710491400000,"service":"batch","message":"epoch millis timestamp"}
+{"level":"DEBUG","time":"2024-03-15T08:30:00.000Z","service":"cache","message":"iso zulu timestamp"}
+Mar 15 08:30:00 host01 sshd: ERROR failed password
+[not-a-timestamp] ERROR api unparseable timestamp falls back to import time
+no timestamp at all here FATAL
