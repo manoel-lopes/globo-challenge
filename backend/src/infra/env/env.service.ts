@@ -11,6 +11,9 @@ export class EnvService {
   }
 
   getDatabaseUrl () {
+    if (process.env.DATABASE_URL?.startsWith('postgresql://')) {
+      return process.env.DATABASE_URL
+    }
     const dbUser = this.configService.get('DB_USER', { infer: true })
     const dbPassword = this.configService.get('DB_PASSWORD', { infer: true })
     const dbHost = this.configService.get('DB_HOST', { infer: true })
