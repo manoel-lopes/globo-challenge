@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { INestApplication } from '@nestjs/common'
 import { PrismaService } from '@/infra/persistence/prisma.service'
 import { makeApp } from '@tests/helpers/app/make-app'
+import { saltLogContent } from '@tests/helpers/domain/enterprise/logs/salt-log-content'
 import {
   getLogFileById,
   listLogs,
@@ -50,7 +51,7 @@ describe('Storage indexes (E2E)', () => {
   beforeAll(async () => {
     app = await makeApp()
     prisma = app.get(PrismaService)
-    await uploadLogFile(app, 'indexed.log', sampleLog)
+    await uploadLogFile(app, 'indexed.log', saltLogContent(sampleLog, 'indexed'))
   })
 
   afterAll(async () => {
