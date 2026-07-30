@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { makeApp } from '@tests/helpers/app/make-app'
+import { saltLogContent } from '@tests/helpers/domain/enterprise/logs/salt-log-content'
 import { uploadLogFile } from '@tests/helpers/domain/enterprise/logs/log-requests'
 
 describe('CreateLogFile (E2E)', () => {
@@ -35,10 +36,10 @@ describe('CreateLogFile (E2E)', () => {
   })
 
   it.each([
-    { filename: 'sample.log', content: sampleLog },
-    { filename: 'sample.txt', content: sampleTxt },
-    { filename: 'sample.jsonl', content: sampleJsonl },
-    { filename: 'sample.json', content: sampleJsonl },
+    { filename: 'sample.log', content: saltLogContent(sampleLog, 'log') },
+    { filename: 'sample.txt', content: saltLogContent(sampleTxt, 'txt') },
+    { filename: 'sample.jsonl', content: saltLogContent(sampleJsonl, 'jsonl') },
+    { filename: 'sample.json', content: saltLogContent(sampleJsonl, 'json') },
   ])('should import $filename and return COMPLETED status', async ({ filename, content }) => {
     const response = await uploadLogFile(app, filename, content)
 
@@ -76,7 +77,10 @@ describe('CreateLogFile size limit (E2E)', () => {
 
 describe('CreateLogFile async processing (E2E)', () => {
   let app: INestApplication
-  const sampleLog = readFileSync(join(process.cwd(), 'tests/fixtures/sample.log'), 'utf8')
+  const sampleLog = saltLogContent(
+    readFileSync(join(process.cwd(), 'tests/fixtures/sample.log'), 'utf8'),
+    'async-pending'
+  )
 
   beforeAll(async () => {
     app = await makeApp({ logSyncMaxBytes: 1 })
