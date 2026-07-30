@@ -24,7 +24,7 @@
     "migrate:loadtest": "dotenv -e .env.loadtest -- prisma migrate deploy",
     "migrate:reset:dev": "dotenv -e .env.development -- prisma migrate reset",
     "db:up:dev": "dotenv -e .env.development -- docker-compose -p template_dev -f docker-compose.yml up --build -d",
-    "db:up:test": "dotenv -e .env.test -- docker-compose -p template_test -f docker-compose.test.yml up --build -d",
+    "db:up:test": "dotenv -e .env.test -- docker compose -p template_test -f docker-compose.test.yml up --build -d",
     "db:up:loadtest": "bash loadtest/scripts/up.sh",
     "db:down:loadtest": "bash loadtest/scripts/down.sh",
     "loadtest:reset": "bash loadtest/scripts/reset.sh",
