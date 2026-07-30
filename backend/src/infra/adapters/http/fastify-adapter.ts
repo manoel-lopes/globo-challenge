@@ -1,3 +1,4 @@
+import multipart from '@fastify/multipart'
 import type { INestApplication } from '@nestjs/common'
 import { FastifyAdapter as NestFastifyAdapter } from '@nestjs/platform-fastify'
 import { Env } from '@/infra/env/env'
@@ -22,5 +23,13 @@ export class FastifyAdapter extends NestFastifyAdapter {
       production: 'error',
     }
     this.getInstance().log.level = logLevels[nodeEnv]
+    // Multipart plugin types are incompatible across nested fastify versions.
+    // @ts-expect-error Fastify multipart register type mismatch
+    await this.getInstance().register(multipart, {
+      limits: {
+        fileSize: envService.get('MAX_UPLOAD_SIZE'),
+        files: 1,
+      },
+    })
   }
 }
