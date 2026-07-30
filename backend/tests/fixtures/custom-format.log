@@ -1,0 +1,5 @@
+2024-01-01 | ERROR | payment-service | charge declined
+level=warn service=cart msg="cart abandoned"
+<<INFO>> :: search-api :: query executed in 12ms
+severity=DEBUG component=cache hit_ratio=0.91
+*** total meltdown *** CRITICAL
