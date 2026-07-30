@@ -4,7 +4,7 @@
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-A robust RESTful API template built with **NestJS**, **TypeScript**, and following **Clean Architecture** and **Domain-Driven Design** principles. This project creates a scalable, maintainable, and testable codebase that is independent of frameworks and external dependencies.
+A robust RESTful API for a **Log Analysis Platform**, built with **NestJS**, **TypeScript**, and following **Clean Architecture** and **Domain-Driven Design** principles. Import log files, classify records, query/filter/search entries, and consume dashboard analytics through a REST API.
 
 
 ## 🛠️ Technologies
@@ -95,16 +95,16 @@ This project follows the **Package by Feature** organizational pattern, where co
 - **Discoverability**: Easy to find all code related to a feature
 - **Reduced coupling**: Features are self-contained units
 
-### Example: Create Account Feature
+### Example: List Log Files Feature
 
 ```
-src/infra/http/presentation/controllers/create-account/
-├── create-account.controller.ts      # NestJS controller
-├── create-account.schema.ts          # Zod validation schema
-└── create-account.controller.e2e-spec.ts  # E2E tests
+src/infra/http/presentation/controllers/list-log-files/
+├── list-log-files.controller.ts      # NestJS controller
+├── ports/list-log-files.protocol.ts  # Zod validation schema
+└── list-log-files.controller.e2e-spec.ts  # E2E tests
 ```
 
-All files related to creating an account are co-located, making the feature easy to understand, modify, and test.
+All files related to listing log files are co-located, making the feature easy to understand, modify, and test.
 
 ---
 
@@ -137,7 +137,6 @@ template-nest-api/
 │   │   │   └── errors/             # ❌ HTTP-specific errors
 │   │   │
 │   │   ├── adapters/               # 🛡️ Anti-corruption layer for external services
-│   │   │   └── security/           # 🔐 Password hashing (Bcrypt)
 │   │   │
 │   │   ├── persistence/            # 💾 Data persistence layer
 │   │   │   ├── mappers/            # 🔄 Domain ↔ Persistence mapping
@@ -145,8 +144,8 @@ template-nest-api/
 │   │   │       ├── prisma/         # 🐘 PostgreSQL with Prisma ORM
 │   │   │       └── in-memory/      # 🧪 In-memory for testing
 │   │   │
-│   │   ├── auth/                   # 🔒 JWT authentication
-│   │   └── doubles/                # 🎭 Test doubles (stubs, mocks)
+│   │   ├── log-processing/         # 📑 File parser and classifier registry
+│   │   └── cache/                  # 🚀 Redis-backed caching
 │   │
 │   ├── shared/                     # 🔄 Cross-cutting concerns shared across layers
 │   └── lib/                        # 📚 Reusable library utilities
@@ -268,67 +267,113 @@ This project uses Swagger for interactive API documentation. Once the applicatio
 
 ### Authentication
 
-Most routes require authentication using a JWT Token.
+This API has no authentication or authorization layer. All endpoints operate in a single shared space, with no per-user scoping of log files or entries (see [docs/PRD.md](docs/PRD.md) for rationale).
 
-## Session
+## Log Files
 
-### Authenticates a user
+### Upload a log file
 
 *   **Method:** `POST`
-*   **Path:** `/auth`
-*   **Description:** Authenticates a user by verifying their email and password. If the credentials are correct, it returns a JWT token.
+*   **Path:** `/log-files`
+*   **Description:** Uploads a `.log`, `.txt`, `.jsonl`, or `.json` file, parses/classifies each line, and stores structured entries. Files at or below `LOG_SYNC_MAX_BYTES` (default 1 MB) are processed synchronously and return `COMPLETED`. Larger files return `PENDING` immediately; poll `GET /log-files/:id` until status is `COMPLETED` or `FAILED`.
 *   **Authentication:** Not required
+*   **Content-Type:** `multipart/form-data` (field name: `file`)
 
-**Request Body:**
+```bash
+curl -X POST http://localhost:3333/log-files \
+  -F "file=@tests/fixtures/sample.log"
+```
+
+**Response:** `201 Created`
 
 ```json
 {
-  "email": "johndoe@example.com",
-  "password": "password123"
+  "id": "019...",
+  "filename": "sample.log",
+  "status": "COMPLETED",
+  "totalLines": 5,
+  "processedLines": 5,
+  "failedLines": 1,
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "processedAt": "2024-01-01T00:00:01.000Z"
 }
 ```
 
-**Response:**
+For large uploads the same endpoint may return `"status": "PENDING"` with `processedAt: null`. Poll until processing finishes:
 
-*   **Status:** `200 OK`
-*   **Body:**
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-}
+```bash
+curl http://localhost:3333/log-files/<id>
 ```
+
+### List log files
+
+*   **Method:** `GET`
+*   **Path:** `/log-files`
+*   **Query:** `page`, `pageSize`, `order`
+
+### Get log file by id
+
+*   **Method:** `GET`
+*   **Path:** `/log-files/:id`
 
 ---
 
-## Users
+## Logs
 
-### Creates a new user account
+### List / filter / search log entries
 
-*   **Method:** `POST`
-*   **Path:** `/users`
-*   **Description:** Creates a new user account. It checks if the email is already registered and hashes the password before saving the user to the database.
-*   **Authentication:** Not required
+*   **Method:** `GET`
+*   **Path:** `/logs`
+*   **Query:**
+    - `level` — exact or comma-separated list (`ERROR,FATAL`)
+    - `from`, `to` — ISO 8601 bounds
+    - `q` — free-text search on `message` / `rawLine`
+    - `logFileId` — restrict to one imported file
+    - Cursor mode: `cursor`, `limit` (default)
+    - Offset mode: `page`, `pageSize`, `order`
 
-**Request Body:**
-
-```json
-{
-  "name": "John Doe",
-  "email": "john.doe@example.com",
-  "password": "Pass123!"
-}
+```bash
+curl "http://localhost:3333/logs?level=ERROR&q=Connection&limit=50"
 ```
 
-**Validation Rules:**
-- `name`: Required, minimum 1 character
-- `email`: Required, valid email format
-- `password`: Required, minimum 6 characters, maximum 12 characters
+### Get log entry by id
 
-**Response:**
+*   **Method:** `GET`
+*   **Path:** `/logs/:id`
 
-*   **Status:** `201 Created`
-*   **Body:** No body
+---
+
+## Dashboard
+
+### Summary
+
+*   **Method:** `GET`
+*   **Path:** `/dashboard/summary`
+*   **Query:** optional `from`, `to`, `logFileId`
+
+```bash
+curl http://localhost:3333/dashboard/summary
+```
+
+### Trends
+
+*   **Method:** `GET`
+*   **Path:** `/dashboard/trends`
+*   **Query:** `bucket=hour|day`, optional `from`, `to`, `splitByLevel`, `logFileId`
+
+```bash
+curl "http://localhost:3333/dashboard/trends?bucket=hour&from=2024-01-01T00:00:00.000Z&to=2024-01-02T00:00:00.000Z"
+```
+
+### Top sources
+
+*   **Method:** `GET`
+*   **Path:** `/dashboard/top-sources`
+*   **Query:** `limit`, `by=volume|errorRate`, optional `from`, `to`, `logFileId`
+
+```bash
+curl "http://localhost:3333/dashboard/top-sources?by=volume&limit=10"
+```
 
 ---
 
