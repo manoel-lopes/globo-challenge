@@ -3,6 +3,10 @@ name: E2E
 on:
   pull_request:
 
+defaults:
+  run:
+    working-directory: backend
+
 jobs:
   e2e:
     name: E2E tests
@@ -22,6 +26,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
 
       - name: Create test env
         run: cp .env.test.example .env.test
