@@ -13,8 +13,9 @@ import type {
   TopSource,
 } from '@/domain/application/repositories/log-entries.repository'
 import { formatPagination } from '@/infra/persistence/helpers/format-pagination.helper'
+import { PrismaLogEntryMapper } from '@/infra/persistence/mappers/prisma-log-entry.mapper'
 import { PrismaService } from '@/infra/persistence/prisma.service'
-import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry.entity'
+import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry/log-entry.entity'
 
 function emptyCountsByLevel (): Record<LogLevel, number> {
   return {
@@ -30,13 +31,6 @@ function emptyCountsByLevel (): Record<LogLevel, number> {
 
 function toJsonValue (value: Record<string, unknown>): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value))
-}
-
-function toMetadata (value: Prisma.JsonValue | null): Record<string, unknown> | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return null
-  }
-  return Object.fromEntries(Object.entries(value))
 }
 
 @Injectable()
@@ -330,17 +324,6 @@ export class PrismaLogEntriesRepository implements LogEntriesRepository {
     createdAt: Date
     updatedAt: Date
   }): LogEntry {
-    return {
-      id: entry.id,
-      logFileId: entry.logFileId,
-      level: entry.level,
-      timestamp: entry.timestamp,
-      source: entry.source,
-      message: entry.message,
-      rawLine: entry.rawLine,
-      metadata: toMetadata(entry.metadata),
-      createdAt: entry.createdAt,
-      updatedAt: entry.updatedAt,
-    }
+    return PrismaLogEntryMapper.toDomain(entry)
   }
 }
