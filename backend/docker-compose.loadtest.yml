@@ -48,6 +48,43 @@ services:
       timeout: 3s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: logs_api_loadtest
+    ports:
+      - '${PORT}:3335'
+    env_file:
+      - .env.loadtest
+    environment:
+      NODE_ENV: production
+      PORT: 3335
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      UPLOAD_TEMP_DIR: /tmp/log-uploads-loadtest
+    volumes:
+      - logs_loadtest_uploads:/tmp/log-uploads-loadtest
+    networks:
+      - logs_loadtest_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    mem_limit: 2g
+    cpus: 2.0
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
 networks:
   logs_loadtest_net:
     name: logs_loadtest_net
@@ -58,3 +95,5 @@ volumes:
     name: logs_loadtest_pgdata
   logs_loadtest_redis:
     name: logs_loadtest_redis
+  logs_loadtest_uploads:
+    name: logs_loadtest_uploads
