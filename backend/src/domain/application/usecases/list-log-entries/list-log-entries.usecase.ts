@@ -6,7 +6,7 @@ import type {
   LogEntriesFilter,
 } from '@/domain/application/repositories/log-entries.repository'
 import { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
-import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry.entity'
+import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry/log-entry.entity'
 
 export type ListLogEntriesRequest = {
   level?: string

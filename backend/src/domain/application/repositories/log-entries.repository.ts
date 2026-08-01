@@ -1,6 +1,6 @@
 import type { PaginatedItems } from '@/core/domain/application/paginated-items'
 import type { PaginationParams } from '@/core/domain/application/pagination-params'
-import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry.entity'
+import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry/log-entry.entity'
 
 export type LogEntryCreateInput = {
   logFileId: string

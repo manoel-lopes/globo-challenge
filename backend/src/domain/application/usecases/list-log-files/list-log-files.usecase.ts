@@ -3,7 +3,7 @@ import type { PaginatedItems } from '@/core/domain/application/paginated-items'
 import type { PaginationParams } from '@/core/domain/application/pagination-params'
 import { UseCase } from '@/core/domain/application/use-case'
 import { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
-import type { LogFile } from '@/domain/enterprise/entities/log-file.entity'
+import type { LogFile } from '@/domain/enterprise/entities/log-file/log-file.entity'
 
 type ListLogFilesRequest = PaginationParams
 
