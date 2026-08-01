@@ -7,11 +7,13 @@ import {
   PayloadTooLargeException,
   Post,
   Req,
+  ServiceUnavailableException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { DuplicateLogFileError } from '@/domain/application/usecases/import-log-file/errors/duplicate-log-file.error'
 import { FileTooLargeError } from '@/domain/application/usecases/import-log-file/errors/file-too-large.error'
+import { LogProcessingUnavailableError } from '@/domain/application/usecases/import-log-file/errors/log-processing-unavailable.error'
 import { MissingLogFileError } from '@/domain/application/usecases/import-log-file/errors/missing-log-file.error'
 import { UnsupportedFileTypeError } from '@/domain/application/usecases/import-log-file/errors/unsupported-file-type.error'
 import { ImportLogFileUseCase } from '@/domain/application/usecases/import-log-file/import-log-file.usecase'
@@ -21,6 +23,7 @@ import {
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiPayloadTooLargeResponse,
+  ApiServiceUnavailableResponse,
   ApiUnprocessableEntityResponse,
   ApiUnsupportedMediaTypeResponse,
 } from '@/infra/http/presentation/decorators/api-responses.decorator'
@@ -55,6 +58,7 @@ export class CreateLogFileController {
   @ApiPayloadTooLargeResponse()
   @ApiUnsupportedMediaTypeResponse('Unsupported media type - file extension is not a supported log format')
   @ApiUnprocessableEntityResponse()
+  @ApiServiceUnavailableResponse()
   async handle (@Req() request: FastifyRequest) {
     const maxSize = this.envService.get('MAX_UPLOAD_SIZE')
     const syncMaxBytes = this.envService.get('LOG_SYNC_MAX_BYTES')
@@ -91,6 +95,9 @@ export class CreateLogFileController {
       }
       if (error instanceof DuplicateLogFileError) {
         throw new ConflictException(error.message)
+      }
+      if (error instanceof LogProcessingUnavailableError) {
+        throw new ServiceUnavailableException(error.message)
       }
       if (
         typeof error === 'object' &&

@@ -1,6 +1,6 @@
 import type { PaginatedItems } from '@/core/domain/application/paginated-items'
 import type { PaginationParams } from '@/core/domain/application/pagination-params'
-import type { LogFile, LogFileProps, LogFileStatus } from '@/domain/enterprise/entities/log-file.entity'
+import type { LogFile, LogFileProps, LogFileStatus } from '@/domain/enterprise/entities/log-file/log-file.entity'
 
 export type LogFileCreateInput = Pick<LogFileProps, 'filename'> & {
   status?: LogFileStatus
@@ -21,6 +21,8 @@ export type LogFilesRepository = {
   findById(id: string): Promise<LogFile | null>
   findDuplicateByChecksum(checksum: string): Promise<LogFile | null>
   findMany(params: PaginationParams): Promise<PaginatedItems<LogFile>>
+  save(logFile: LogFile): Promise<LogFile>
+  claimForProcessing(id: string): Promise<LogFile | null>
   update(id: string, data: LogFileProgressUpdate): Promise<LogFile>
   delete(id: string): Promise<void>
   count(): Promise<number>

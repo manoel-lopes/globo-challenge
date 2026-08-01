@@ -3,6 +3,8 @@ node_modules/
 
 # Build
 dist/
+loadtest/
+.notebook/
 
 # Environment
 .env
@@ -21,6 +23,11 @@ dist/
 
 # Coverage
 coverage/
+
+# Load-test artifacts
+loadtest/results/
+loadtest/datasets/*.log
+!loadtest/datasets/samples/**/*.log
 
 # OS
 .DS_Store

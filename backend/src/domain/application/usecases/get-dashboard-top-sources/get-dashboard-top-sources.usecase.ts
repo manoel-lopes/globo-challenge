@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common'
-import { UseCase } from '@/core/domain/application/use-case'
-import type { TopSource } from '@/domain/application/repositories/log-entries.repository'
-import { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
+import type { UseCase } from '@/core/domain/application/use-case'
+import type {
+  LogEntriesRepository,
+  TopSource,
+} from '@/domain/application/repositories/log-entries.repository'
 
 type GetDashboardTopSourcesRequest = {
   limit?: number
@@ -11,11 +12,8 @@ type GetDashboardTopSourcesRequest = {
   logFileId?: string
 }
 
-@Injectable()
 export class GetDashboardTopSourcesUseCase implements UseCase {
-  constructor (
-    @Inject(LogEntriesRepository) private readonly logEntriesRepository: LogEntriesRepository
-  ) {}
+  constructor (private readonly logEntriesRepository: LogEntriesRepository) {}
 
   async execute (req: GetDashboardTopSourcesRequest = {}): Promise<TopSource[]> {
     return this.logEntriesRepository.getTopSources({

@@ -1,3 +1,4 @@
+import cors from '@fastify/cors'
 import multipart from '@fastify/multipart'
 import type { INestApplication } from '@nestjs/common'
 import { FastifyAdapter as NestFastifyAdapter } from '@nestjs/platform-fastify'
@@ -23,7 +24,10 @@ export class FastifyAdapter extends NestFastifyAdapter {
       production: 'error',
     }
     this.getInstance().log.level = logLevels[nodeEnv]
-    // Multipart plugin types are incompatible across nested fastify versions.
+    // @ts-expect-error Fastify cors register type mismatch
+    await this.getInstance().register(cors, {
+      origin: true,
+    })
     // @ts-expect-error Fastify multipart register type mismatch
     await this.getInstance().register(multipart, {
       limits: {

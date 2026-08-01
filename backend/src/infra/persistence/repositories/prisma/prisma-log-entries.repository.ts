@@ -13,8 +13,9 @@ import type {
   TopSource,
 } from '@/domain/application/repositories/log-entries.repository'
 import { formatPagination } from '@/infra/persistence/helpers/format-pagination.helper'
+import { PrismaLogEntryMapper } from '@/infra/persistence/mappers/prisma-log-entry.mapper'
 import { PrismaService } from '@/infra/persistence/prisma.service'
-import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry.entity'
+import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry/log-entry.entity'
 
 function emptyCountsByLevel (): Record<LogLevel, number> {
   return {
@@ -30,13 +31,6 @@ function emptyCountsByLevel (): Record<LogLevel, number> {
 
 function toJsonValue (value: Record<string, unknown>): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value))
-}
-
-function toMetadata (value: Prisma.JsonValue | null): Record<string, unknown> | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return null
-  }
-  return Object.fromEntries(Object.entries(value))
 }
 
 @Injectable()
@@ -60,6 +54,15 @@ export class PrismaLogEntriesRepository implements LogEntriesRepository {
     })
     return result.count
   }
+
+  async deleteManyByLogFileId (logFileId: string): Promise<number> {
+    const result = await this.prisma.logEntry.deleteMany({
+      where: { logFileId },
+    })
+    return result.count
+  }
+
+  async invalidateDashboardCache (): Promise<void> {}
 
   async findById (id: string): Promise<LogEntry | null> {
     const entry = await this.prisma.logEntry.findUnique({ where: { id } })
@@ -133,18 +136,22 @@ export class PrismaLogEntriesRepository implements LogEntriesRepository {
     filter: Pick<LogEntriesFilter, 'from' | 'to' | 'logFileId'> = {}
   ): Promise<DashboardSummary> {
     const where = this.buildWhere(filter)
-    const [totalEntries, grouped, distinctSources, filesProcessed] = await Promise.all([
+    const sourceConditions = [
+      Prisma.sql`source IS NOT NULL`,
+      ...this.buildRawConditions(filter),
+    ]
+    const [totalEntries, grouped, distinctSourcesRows, filesProcessed] = await Promise.all([
       this.prisma.logEntry.count({ where }),
       this.prisma.logEntry.groupBy({
         by: ['level'],
         where,
         _count: { _all: true },
       }),
-      this.prisma.logEntry.findMany({
-        where: { ...where, source: { not: null } },
-        distinct: ['source'],
-        select: { source: true },
-      }),
+      this.prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+        SELECT COUNT(DISTINCT source)::bigint AS count
+        FROM log_entries
+        WHERE ${Prisma.join(sourceConditions, ' AND ')}
+      `),
       this.prisma.logFile.count({
         where: {
           status: 'COMPLETED',
@@ -159,7 +166,7 @@ export class PrismaLogEntriesRepository implements LogEntriesRepository {
     return {
       totalEntries,
       countsByLevel,
-      distinctSources: distinctSources.length,
+      distinctSources: Number(distinctSourcesRows[0]?.count ?? 0),
       filesProcessed,
     }
   }
@@ -172,10 +179,7 @@ export class PrismaLogEntriesRepository implements LogEntriesRepository {
     logFileId?: string
   }): Promise<DashboardTrends> {
     const truncUnit = params.bucket === 'hour' ? 'hour' : 'day'
-    const conditions: Prisma.Sql[] = []
-    if (params.from) conditions.push(Prisma.sql`"timestamp" >= ${params.from}`)
-    if (params.to) conditions.push(Prisma.sql`"timestamp" <= ${params.to}`)
-    if (params.logFileId) conditions.push(Prisma.sql`"logFileId" = ${params.logFileId}`)
+    const conditions = this.buildRawConditions(params)
     const whereClause = conditions.length > 0
       ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
       : Prisma.empty
@@ -242,44 +246,51 @@ export class PrismaLogEntriesRepository implements LogEntriesRepository {
     logFileId?: string
   }): Promise<TopSource[]> {
     const limit = Math.min(Math.max(params.limit ?? 10, 1), 100)
-    const where = this.buildWhere({
-      from: params.from,
-      to: params.to,
-      logFileId: params.logFileId,
+    const conditions = [
+      Prisma.sql`source IS NOT NULL`,
+      ...this.buildRawConditions(params),
+    ]
+    const orderBy = params.by === 'errorRate'
+      ? Prisma.sql`ORDER BY (CASE WHEN total = 0 THEN 0 ELSE error_count::float8 / total END) DESC, total DESC`
+      : Prisma.sql`ORDER BY total DESC`
+    const rows = await this.prisma.$queryRaw<Array<{
+      source: string
+      total: bigint
+      error_count: bigint
+    }>>(Prisma.sql`
+      SELECT * FROM (
+        SELECT source,
+               COUNT(*)::bigint AS total,
+               COUNT(*) FILTER (WHERE level IN ('ERROR', 'FATAL'))::bigint AS error_count
+        FROM log_entries
+        WHERE ${Prisma.join(conditions, ' AND ')}
+        GROUP BY source
+      ) AS agg
+      ${orderBy}
+      LIMIT ${limit}
+    `)
+    return rows.map((row) => {
+      const total = Number(row.total)
+      const errorCount = Number(row.error_count)
+      return {
+        source: row.source,
+        total,
+        errorCount,
+        errorRate: total === 0 ? 0 : errorCount / total,
+      }
     })
-    where.source = { not: null }
-    const grouped = await this.prisma.logEntry.groupBy({
-      by: ['source'],
-      where,
-      _count: { _all: true },
-    })
-    const errorGrouped = await this.prisma.logEntry.groupBy({
-      by: ['source'],
-      where: {
-        ...where,
-        level: { in: ['ERROR', 'FATAL'] },
-      },
-      _count: { _all: true },
-    })
-    const errorMap = new Map(
-      errorGrouped.map((row) => [row.source ?? '', row._count._all])
-    )
-    const sources: TopSource[] = grouped
-      .flatMap((row) => {
-        if (!row.source) return []
-        const total = row._count._all
-        const errorCount = errorMap.get(row.source) ?? 0
-        return [{
-          source: row.source,
-          total,
-          errorCount,
-          errorRate: total === 0 ? 0 : errorCount / total,
-        }]
-      })
-    const sorted = params.by === 'errorRate'
-      ? sources.sort((a, b) => b.errorRate - a.errorRate || b.total - a.total)
-      : sources.sort((a, b) => b.total - a.total)
-    return sorted.slice(0, limit)
+  }
+
+  private buildRawConditions (filter: {
+    from?: Date
+    to?: Date
+    logFileId?: string
+  }): Prisma.Sql[] {
+    const conditions: Prisma.Sql[] = []
+    if (filter.from) conditions.push(Prisma.sql`"timestamp" >= ${filter.from}`)
+    if (filter.to) conditions.push(Prisma.sql`"timestamp" <= ${filter.to}`)
+    if (filter.logFileId) conditions.push(Prisma.sql`"logFileId" = ${filter.logFileId}`)
+    return conditions
   }
 
   private buildCursorCondition (
@@ -330,17 +341,6 @@ export class PrismaLogEntriesRepository implements LogEntriesRepository {
     createdAt: Date
     updatedAt: Date
   }): LogEntry {
-    return {
-      id: entry.id,
-      logFileId: entry.logFileId,
-      level: entry.level,
-      timestamp: entry.timestamp,
-      source: entry.source,
-      message: entry.message,
-      rawLine: entry.rawLine,
-      metadata: toMetadata(entry.metadata),
-      createdAt: entry.createdAt,
-      updatedAt: entry.updatedAt,
-    }
+    return PrismaLogEntryMapper.toDomain(entry)
   }
 }

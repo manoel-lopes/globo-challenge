@@ -1,6 +1,6 @@
 import type { PaginatedItems } from '@/core/domain/application/paginated-items'
 import type { PaginationParams } from '@/core/domain/application/pagination-params'
-import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry.entity'
+import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry/log-entry.entity'
 
 export type LogEntryCreateInput = {
   logFileId: string
@@ -59,6 +59,8 @@ export type TopSource = {
 
 export type LogEntriesRepository = {
   createMany(entries: LogEntryCreateInput[]): Promise<number>
+  deleteManyByLogFileId(logFileId: string): Promise<number>
+  invalidateDashboardCache(): Promise<void>
   findById(id: string): Promise<LogEntry | null>
   findMany(
     filter: LogEntriesFilter,

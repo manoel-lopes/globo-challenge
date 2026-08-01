@@ -9,11 +9,12 @@ import {
 
 @Injectable()
 export class ZodValidationPipe implements PipeTransform {
-  constructor (private schema: z.ZodSchema) {}
+  constructor (private schema: z.ZodSchema) {
+    setZodErrorMap(z)
+  }
 
   transform (value: unknown) {
     try {
-      setZodErrorMap(z)
       return this.schema.parse(value)
     } catch (error) {
       if (error instanceof z.ZodError) {

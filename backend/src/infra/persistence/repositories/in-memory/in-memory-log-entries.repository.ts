@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import type { PaginatedItems } from '@/core/domain/application/paginated-items'
 import type { PaginationParams } from '@/core/domain/application/pagination-params'
 import type {
@@ -11,7 +10,7 @@ import type {
   LogEntryCreateInput,
   TopSource,
 } from '@/domain/application/repositories/log-entries.repository'
-import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry.entity'
+import { LogEntry, type LogLevel } from '@/domain/enterprise/entities/log-entry/log-entry.entity'
 import { BaseInMemoryRepository as BaseRepository } from './base/base-in-memory.repository'
 
 function emptyCountsByLevel (): Record<LogLevel, number> {
@@ -33,10 +32,7 @@ export class InMemoryLogEntriesRepository
 
   async createMany (entries: LogEntryCreateInput[]): Promise<number> {
     for (const entry of entries) {
-      const item: LogEntry = {
-        id: randomUUID(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      this.items.push(LogEntry.create({
         logFileId: entry.logFileId,
         level: entry.level,
         timestamp: entry.timestamp,
@@ -44,11 +40,18 @@ export class InMemoryLogEntriesRepository
         message: entry.message,
         rawLine: entry.rawLine,
         metadata: entry.metadata ?? null,
-      }
-      this.items.push(item)
+      }))
     }
     return entries.length
   }
+
+  async deleteManyByLogFileId (logFileId: string): Promise<number> {
+    const before = this.items.length
+    this.items = this.items.filter((item) => item.logFileId !== logFileId)
+    return before - this.items.length
+  }
+
+  async invalidateDashboardCache (): Promise<void> {}
 
   async findMany (
     filter: LogEntriesFilter,

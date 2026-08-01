@@ -13,6 +13,7 @@ async function bootstrap () {
     fastifyAdapter
   )
   await fastifyAdapter.configure(app)
+  app.enableShutdownHooks()
   app.useGlobalFilters(new AllExceptionsFilter())
   const envService = app.get(EnvService)
   if (envService.get('ENABLE_SWAGGER')) {

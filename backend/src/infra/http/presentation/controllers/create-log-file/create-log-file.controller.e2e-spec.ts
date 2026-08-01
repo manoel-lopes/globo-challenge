@@ -98,3 +98,33 @@ describe('CreateLogFile async processing (E2E)', () => {
     expect(response.body.id).toBeDefined()
   })
 })
+
+describe('CreateLogFile concurrent duplicate (E2E)', () => {
+  let app: INestApplication
+  const content = saltLogContent(
+    readFileSync(join(process.cwd(), 'tests/fixtures/sample.log'), 'utf8'),
+    'concurrent-dup'
+  )
+
+  beforeAll(async () => {
+    app = await makeApp()
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  it('should return 409 for one of two concurrent identical uploads', async () => {
+    const [a, b] = await Promise.all([
+      uploadLogFile(app, 'race-a.log', content),
+      uploadLogFile(app, 'race-b.log', content),
+    ])
+
+    const statuses = [a.statusCode, b.statusCode].sort()
+    expect(statuses).toEqual([201, 409])
+
+    const conflict = a.statusCode === 409 ? a : b
+    const created = a.statusCode === 201 ? a : b
+    expect(conflict.body.message).toContain(created.body.id)
+  })
+})

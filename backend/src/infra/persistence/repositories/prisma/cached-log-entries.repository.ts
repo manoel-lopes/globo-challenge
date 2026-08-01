@@ -16,7 +16,9 @@ import { REDIS_CLIENT } from '@/infra/cache/cache.module'
 import { BaseCachedRepository } from '@/infra/cache/repositories/base/base-cached.repository'
 import { EnvService } from '@/infra/env/env.service'
 import { PrismaLogEntriesRepository } from '@/infra/persistence/repositories/prisma/prisma-log-entries.repository'
-import type { LogEntry } from '@/domain/enterprise/entities/log-entry.entity'
+import type { LogEntry } from '@/domain/enterprise/entities/log-entry/log-entry.entity'
+
+const DASHBOARD_GEN_KEY = 'dashboard:gen'
 
 @Injectable()
 export class CachedLogEntriesRepository
@@ -31,10 +33,18 @@ export class CachedLogEntriesRepository
   }
 
   createMany (entries: LogEntryCreateInput[]): Promise<number> {
-    return this.prismaRepository.createMany(entries).then(async (count) => {
-      await this.deleteCacheByPattern('dashboard:*')
+    return this.prismaRepository.createMany(entries)
+  }
+
+  async deleteManyByLogFileId (logFileId: string): Promise<number> {
+    return this.prismaRepository.deleteManyByLogFileId(logFileId).then(async (count) => {
+      await this.invalidateDashboardCache()
       return count
     })
+  }
+
+  async invalidateDashboardCache (): Promise<void> {
+    await this.redis.incr(DASHBOARD_GEN_KEY)
   }
 
   findById (id: string): Promise<LogEntry | null> {
@@ -58,7 +68,7 @@ export class CachedLogEntriesRepository
   async getSummary (
     filter: Pick<LogEntriesFilter, 'from' | 'to' | 'logFileId'> = {}
   ): Promise<DashboardSummary> {
-    const key = `dashboard:summary:${JSON.stringify(filter)}`
+    const key = await this.dashboardKey('summary', filter)
     const cached = await this.getFromCache<DashboardSummary>(key)
     if (cached) return cached
     const summary = await this.prismaRepository.getSummary(filter)
@@ -73,7 +83,7 @@ export class CachedLogEntriesRepository
     splitByLevel?: boolean
     logFileId?: string
   }): Promise<DashboardTrends> {
-    const key = `dashboard:trends:${JSON.stringify(params)}`
+    const key = await this.dashboardKey('trends', params)
     const cached = await this.getFromCache<DashboardTrends>(key)
     if (cached) {
       return {
@@ -96,11 +106,21 @@ export class CachedLogEntriesRepository
     to?: Date
     logFileId?: string
   }): Promise<TopSource[]> {
-    const key = `dashboard:top-sources:${JSON.stringify(params)}`
+    const key = await this.dashboardKey('top-sources', params)
     const cached = await this.getFromCache<TopSource[]>(key)
     if (cached) return cached
     const sources = await this.prismaRepository.getTopSources(params)
     await this.setCache(key, sources, this.envService.get('CACHE_TTL_SECONDS'))
     return sources
+  }
+
+  private async dashboardKey (segment: string, payload: unknown): Promise<string> {
+    const gen = await this.currentGeneration()
+    return `dashboard:v${gen}:${segment}:${JSON.stringify(payload)}`
+  }
+
+  private async currentGeneration (): Promise<string> {
+    const gen = await this.redis.get(DASHBOARD_GEN_KEY)
+    return gen ?? '0'
   }
 }

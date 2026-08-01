@@ -58,4 +58,42 @@ describe('ProcessLogFileUseCase', () => {
       sut.execute({ logFileId: '00000000-0000-0000-0000-000000000000', filePath })
     ).rejects.toThrow('LogFile not found')
   })
+
+  it('should not re-ingest when claim loses to an existing COMPLETED file', async () => {
+    const logFile = await logFilesRepository.create({
+      filename: 'app.log',
+      status: 'PENDING',
+    })
+    const filePath = join(tempDir, `${logFile.id}.upload`)
+    await writeFile(filePath, 'INFO once\n')
+
+    const first = await sut.execute({ logFileId: logFile.id, filePath })
+    expect(first.status).toBe('COMPLETED')
+
+    await writeFile(filePath, 'INFO twice should not land\n')
+    const second = await sut.execute({ logFileId: logFile.id, filePath })
+    expect(second.status).toBe('COMPLETED')
+    expect(second.id).toBe(first.id)
+
+    const entries = await logEntriesRepository.findMany({}, { page: 1, pageSize: 10 })
+    expect(entries.totalItems).toBe(1)
+    expect(entries.items[0]?.rawLine).toContain('once')
+    expect(entries.items[0]?.rawLine).not.toContain('twice')
+  })
+
+  it('should allow reclaim after FAILED', async () => {
+    const logFile = await logFilesRepository.create({
+      filename: 'retry.log',
+      status: 'PENDING',
+    })
+    logFile.fail(new Date())
+    await logFilesRepository.save(logFile)
+
+    const filePath = join(tempDir, `${logFile.id}.upload`)
+    await writeFile(filePath, 'ERROR recovered\n')
+
+    const result = await sut.execute({ logFileId: logFile.id, filePath })
+    expect(result.status).toBe('COMPLETED')
+    expect(result.processedLines).toBe(1)
+  })
 })

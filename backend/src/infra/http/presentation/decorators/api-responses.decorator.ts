@@ -72,3 +72,11 @@ export function ApiInternalServerErrorResponse () {
     ApiResponse({ status: 500, description: 'Internal server error' })
   )
 }
+
+export function ApiServiceUnavailableResponse (
+  description = 'Service unavailable - background processing queue is temporarily unavailable'
+) {
+  return applyDecorators(
+    ApiResponse({ status: 503, description })
+  )
+}

@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common'
-import { UseCase } from '@/core/domain/application/use-case'
-import type { DashboardSummary } from '@/domain/application/repositories/log-entries.repository'
-import { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
+import type { UseCase } from '@/core/domain/application/use-case'
+import type {
+  DashboardSummary,
+  LogEntriesRepository,
+} from '@/domain/application/repositories/log-entries.repository'
 
 type GetDashboardSummaryRequest = {
   from?: string
@@ -9,11 +10,8 @@ type GetDashboardSummaryRequest = {
   logFileId?: string
 }
 
-@Injectable()
 export class GetDashboardSummaryUseCase implements UseCase {
-  constructor (
-    @Inject(LogEntriesRepository) private readonly logEntriesRepository: LogEntriesRepository
-  ) {}
+  constructor (private readonly logEntriesRepository: LogEntriesRepository) {}
 
   async execute (req: GetDashboardSummaryRequest = {}): Promise<DashboardSummary> {
     return this.logEntriesRepository.getSummary({

@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.git
+.husky
+.env
+.env.development
+.env.test
+.env.production
+.env.loadtest
+loadtest/datasets/*.log
+loadtest/results
+*.md
+docs
