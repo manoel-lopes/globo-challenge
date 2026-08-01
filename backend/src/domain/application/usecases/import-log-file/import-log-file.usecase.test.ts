@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import type { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
 import type { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
 import { LogFileParser } from '@/infra/log-processing/log-file.parser'
+import { InProcessLogProcessingQueue } from '@/infra/log-processing/queue/in-process-log-processing.queue'
 import { InMemoryLogEntriesRepository } from '@/infra/persistence/repositories/in-memory/in-memory-log-entries.repository'
 import { InMemoryLogFilesRepository } from '@/infra/persistence/repositories/in-memory/in-memory-log-files.repository'
 import { ProcessLogFileUseCase } from '../process-log-file/process-log-file.usecase'
@@ -20,12 +21,19 @@ describe('ImportLogFileUseCase', () => {
   beforeEach(async () => {
     logFilesRepository = new InMemoryLogFilesRepository()
     logEntriesRepository = new InMemoryLogEntriesRepository()
+    const fileProcessor = new LogFileParser()
     const processLogFileUseCase = new ProcessLogFileUseCase(
       logFilesRepository,
       logEntriesRepository,
-      new LogFileParser()
+      fileProcessor
     )
-    sut = new ImportLogFileUseCase(logFilesRepository, processLogFileUseCase)
+    const logProcessingQueue = new InProcessLogProcessingQueue(processLogFileUseCase)
+    sut = new ImportLogFileUseCase(
+      logFilesRepository,
+      fileProcessor,
+      processLogFileUseCase,
+      logProcessingQueue
+    )
     tempDir = await mkdtemp(join(tmpdir(), 'import-log-'))
   })
 
@@ -111,5 +119,52 @@ describe('ImportLogFileUseCase', () => {
         isTruncated: () => true,
       })
     ).rejects.toThrow('File exceeds maximum allowed size of 10000 bytes')
+  })
+
+  it('should reject concurrent uploads of the same checksum', async () => {
+    const content = 'INFO concurrent duplicate line\n'
+    const request = () =>
+      sut.execute({
+        filename: 'dup.log',
+        maxSize: 10_000,
+        syncMaxBytes: 10_000,
+        tempDir,
+        stream: Readable.from([content]),
+      })
+
+    const first = await request()
+    expect(first.status).toBe('COMPLETED')
+
+    await expect(request()).rejects.toThrow(/Log file already imported as/)
+    expect(await logFilesRepository.count()).toBe(1)
+  })
+
+  it('should reject racing duplicate checksum saves via ChecksumConflictError', async () => {
+    const content = 'WARN race line\n'
+    const [a, b] = await Promise.allSettled([
+      sut.execute({
+        filename: 'race-a.log',
+        maxSize: 10_000,
+        syncMaxBytes: 10_000,
+        tempDir,
+        stream: Readable.from([content]),
+      }),
+      sut.execute({
+        filename: 'race-b.log',
+        maxSize: 10_000,
+        syncMaxBytes: 10_000,
+        tempDir,
+        stream: Readable.from([content]),
+      }),
+    ])
+
+    const fulfilled = [a, b].filter((r) => r.status === 'fulfilled')
+    const rejected = [a, b].filter((r) => r.status === 'rejected')
+    expect(fulfilled).toHaveLength(1)
+    expect(rejected).toHaveLength(1)
+    expect((rejected[0]).reason.message).toMatch(
+      /Log file already imported as/
+    )
+    expect(await logFilesRepository.count()).toBe(1)
   })
 })
