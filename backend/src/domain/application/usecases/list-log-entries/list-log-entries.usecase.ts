@@ -1,11 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common'
 import type { PaginatedItems } from '@/core/domain/application/paginated-items'
-import { UseCase } from '@/core/domain/application/use-case'
+import type { UseCase } from '@/core/domain/application/use-case'
 import type {
   CursorPaginatedItems,
   LogEntriesFilter,
+  LogEntriesRepository,
 } from '@/domain/application/repositories/log-entries.repository'
-import { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
 import type { LogEntry, LogLevel } from '@/domain/enterprise/entities/log-entry/log-entry.entity'
 
 export type ListLogEntriesRequest = {
@@ -39,11 +38,8 @@ function isLogLevel (value: string): value is LogLevel {
   return Object.hasOwn(LOG_LEVELS, value)
 }
 
-@Injectable()
 export class ListLogEntriesUseCase implements UseCase {
-  constructor (
-    @Inject(LogEntriesRepository) private readonly logEntriesRepository: LogEntriesRepository
-  ) {}
+  constructor (private readonly logEntriesRepository: LogEntriesRepository) {}
 
   async execute (req: ListLogEntriesRequest = {}): Promise<ListLogEntriesResponse> {
     const filter = this.buildFilter(req)
