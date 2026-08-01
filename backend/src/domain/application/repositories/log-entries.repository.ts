@@ -59,6 +59,8 @@ export type TopSource = {
 
 export type LogEntriesRepository = {
   createMany(entries: LogEntryCreateInput[]): Promise<number>
+  deleteManyByLogFileId(logFileId: string): Promise<number>
+  invalidateDashboardCache(): Promise<void>
   findById(id: string): Promise<LogEntry | null>
   findMany(
     filter: LogEntriesFilter,

@@ -55,6 +55,15 @@ export class PrismaLogEntriesRepository implements LogEntriesRepository {
     return result.count
   }
 
+  async deleteManyByLogFileId (logFileId: string): Promise<number> {
+    const result = await this.prisma.logEntry.deleteMany({
+      where: { logFileId },
+    })
+    return result.count
+  }
+
+  async invalidateDashboardCache (): Promise<void> {}
+
   async findById (id: string): Promise<LogEntry | null> {
     const entry = await this.prisma.logEntry.findUnique({ where: { id } })
     return entry ? this.toDomain(entry) : null

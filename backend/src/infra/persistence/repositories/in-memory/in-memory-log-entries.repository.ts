@@ -45,6 +45,14 @@ export class InMemoryLogEntriesRepository
     return entries.length
   }
 
+  async deleteManyByLogFileId (logFileId: string): Promise<number> {
+    const before = this.items.length
+    this.items = this.items.filter((item) => item.logFileId !== logFileId)
+    return before - this.items.length
+  }
+
+  async invalidateDashboardCache (): Promise<void> {}
+
   async findMany (
     filter: LogEntriesFilter,
     params: PaginationParams
