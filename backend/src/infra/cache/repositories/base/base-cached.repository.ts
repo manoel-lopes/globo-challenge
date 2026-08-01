@@ -17,10 +17,25 @@ export abstract class BaseCachedRepository {
     await this.redis.del(key)
   }
 
-  protected async deleteCacheByPattern (pattern: string): Promise<void> {
-    const keys = await this.redis.keys(pattern)
-    if (keys.length > 0) {
-      await this.redis.del(...keys)
-    }
+  protected deleteCacheByPattern (pattern: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const stream = this.redis.scanStream({ match: pattern, count: 100 })
+      const pipeline = this.redis.pipeline()
+      let queued = 0
+      stream.on('data', (keys: string[]) => {
+        for (const key of keys) {
+          pipeline.del(key)
+          queued += 1
+        }
+      })
+      stream.on('error', reject)
+      stream.on('end', () => {
+        if (queued === 0) {
+          resolve()
+          return
+        }
+        pipeline.exec().then(() => resolve()).catch(reject)
+      })
+    })
   }
 }
