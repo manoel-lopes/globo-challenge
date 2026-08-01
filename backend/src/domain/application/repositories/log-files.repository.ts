@@ -21,6 +21,8 @@ export type LogFilesRepository = {
   findById(id: string): Promise<LogFile | null>
   findDuplicateByChecksum(checksum: string): Promise<LogFile | null>
   findMany(params: PaginationParams): Promise<PaginatedItems<LogFile>>
+  save(logFile: LogFile): Promise<LogFile>
+  claimForProcessing(id: string): Promise<LogFile | null>
   update(id: string, data: LogFileProgressUpdate): Promise<LogFile>
   delete(id: string): Promise<void>
   count(): Promise<number>
