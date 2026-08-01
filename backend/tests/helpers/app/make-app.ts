@@ -45,6 +45,7 @@ export async function makeApp (options: MakeAppOptions = {}): Promise<INestAppli
     { logger: false }
   )
   app.useGlobalFilters(new AllExceptionsFilter())
+  app.enableShutdownHooks()
   const envService = app.get(EnvService)
   // @ts-expect-error Fastify multipart register type mismatch
   await app.register(multipart, {
