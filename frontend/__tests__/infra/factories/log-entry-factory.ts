@@ -6,7 +6,6 @@ export function createLogEntry(overrides: Partial<LogEntry> = {}): LogEntry {
   const level: LogLevel = overrides.level ?? 'INFO'
   const source = overrides.source ?? faker.hacker.noun()
   const message = overrides.message ?? faker.hacker.phrase()
-
   return {
     id: faker.string.uuid(),
     logFileId: faker.string.uuid(),

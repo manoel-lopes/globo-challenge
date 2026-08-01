@@ -5,7 +5,6 @@ export function createLogFile(overrides: Partial<LogFile> = {}): LogFile {
   const status: LogFileStatus = overrides.status ?? 'COMPLETED'
   const totalLines = overrides.totalLines ?? faker.number.int({ min: 20, max: 500 })
   const now = new Date().toISOString()
-
   return {
     id: faker.string.uuid(),
     filename: `${faker.hacker.noun()}-service.log`,

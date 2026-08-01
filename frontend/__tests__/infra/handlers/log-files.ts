@@ -23,7 +23,6 @@ function parseMultipartUpload(body: Buffer | null): ParsedUpload | null {
   const contentStart = headerEnd + 4
   const boundaryMatch = /\r\n--/.exec(text.slice(contentStart))
   const contentEnd = boundaryMatch ? contentStart + boundaryMatch.index : text.length
-
   return { filename: nameMatch[1], size: Math.max(0, contentEnd - contentStart) }
 }
 
@@ -83,7 +82,7 @@ export async function registerLogFileHandlers(page: Page, state: MockState): Pro
     }
 
     if (method === 'POST') {
-      const parsed = parseMultipartUpload(await request.postDataBuffer())
+      const parsed = parseMultipartUpload(request.postDataBuffer())
       if (!parsed) {
         await route.fulfill({
           status: 400,

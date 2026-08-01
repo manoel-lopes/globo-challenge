@@ -169,6 +169,5 @@ export function buildSeedData(): SeedData {
     ...buildPaymentsEntries(payments.id),
     ...buildAuthEntries(auth.id),
   ]
-
   return { logFiles, logEntries }
 }
