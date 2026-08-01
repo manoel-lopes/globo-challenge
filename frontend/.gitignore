@@ -10,10 +10,16 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vite
 *.local
 
 # TanStack Router
 src/routeTree.gen.ts
+
+# Playwright
+/playwright-report/
+/test-results/
+/blob-report/
 
 # Env
 .env
