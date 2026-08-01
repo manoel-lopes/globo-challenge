@@ -19,18 +19,33 @@ function reasonPhrase (statusCode: number): string {
   return STATUS_CODES[statusCode] ?? 'Error'
 }
 
+function isErrorPayload (
+  value: unknown
+): value is { message?: unknown, error?: unknown } {
+  return typeof value === 'object' && value !== null
+}
+
 function toErrorBody (exception: HttpException): ErrorResponseBody {
   const statusCode = exception.getStatus()
   const payload = exception.getResponse()
   if (typeof payload === 'string') {
     return { statusCode, message: payload, error: reasonPhrase(statusCode) }
   }
-  const record = payload as Record<string, unknown>
-  const message = record.message ?? exception.message
+  if (!isErrorPayload(payload)) {
+    return {
+      statusCode,
+      message: exception.message,
+      error: reasonPhrase(statusCode),
+    }
+  }
+  const message =
+    typeof payload.message === 'string' || Array.isArray(payload.message)
+      ? payload.message
+      : exception.message
   return {
     statusCode,
-    message: message as string | string[],
-    error: typeof record.error === 'string' ? record.error : reasonPhrase(statusCode),
+    message,
+    error: typeof payload.error === 'string' ? payload.error : reasonPhrase(statusCode),
   }
 }
 
