@@ -1,2 +1,0 @@
-cd backend
-pnpm exec lint-staged
