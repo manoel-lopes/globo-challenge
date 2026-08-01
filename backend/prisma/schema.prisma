@@ -41,7 +41,6 @@ model LogFile {
 
   entries LogEntry[]
 
-  @@index([checksum])
   @@map("log_files")
 }
 
