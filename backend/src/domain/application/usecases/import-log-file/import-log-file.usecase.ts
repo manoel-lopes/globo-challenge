@@ -1,21 +1,18 @@
-import { createHash } from 'node:crypto'
-import { createWriteStream } from 'node:fs'
-import { mkdir, stat, unlink } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import type { Readable } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
-import { Inject, Injectable } from '@nestjs/common'
-import { UseCase } from '@/core/domain/application/use-case'
-import { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
-import type { LogFile } from '@/domain/enterprise/entities/log-file.entity'
+import type { UseCase } from '@/core/domain/application/use-case'
+import type { LogFileProcessorPort } from '@/domain/application/ports/log-file-processor.port'
+import type { LogProcessingQueue } from '@/domain/application/queues/log-processing.queue'
+import type { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
+import type { LogFile } from '@/domain/enterprise/entities/log-file/log-file.entity'
+import { FileSizeLimit } from '@/domain/enterprise/value-objects/file-size-limit/file-size-limit.vo'
+import { LogFileName } from '@/domain/enterprise/value-objects/log-file/log-file-name.vo'
 import { ProcessLogFileUseCase } from '../process-log-file/process-log-file.usecase'
+import { ChecksumConflictError } from './errors/checksum-conflict.error'
 import { DuplicateLogFileError } from './errors/duplicate-log-file.error'
 import { FileTooLargeError } from './errors/file-too-large.error'
+import { LogProcessingUnavailableError } from './errors/log-processing-unavailable.error'
 import { MissingLogFileError } from './errors/missing-log-file.error'
 import { UnsupportedFileTypeError } from './errors/unsupported-file-type.error'
-
-const ALLOWED_EXTENSIONS = ['.log', '.txt', '.jsonl', '.json']
 
 export type ImportLogFileRequest = {
   filename: string
@@ -28,35 +25,39 @@ export type ImportLogFileRequest = {
   isTruncated?: () => boolean
 }
 
-@Injectable()
 export class ImportLogFileUseCase implements UseCase {
   constructor (
-    @Inject(LogFilesRepository) private readonly logFilesRepository: LogFilesRepository,
-    private readonly processLogFileUseCase: ProcessLogFileUseCase
+    private readonly logFilesRepository: LogFilesRepository,
+    private readonly fileProcessor: LogFileProcessorPort,
+    private readonly processLogFileUseCase: ProcessLogFileUseCase,
+    private readonly logProcessingQueue: LogProcessingQueue
   ) {}
 
   async execute (req: ImportLogFileRequest): Promise<LogFile> {
     if (!req.filename) {
       throw new MissingLogFileError()
     }
-    if (!this.isSupportedFilename(req.filename)) {
+    if (!LogFileName.isSupported(req.filename)) {
       throw new UnsupportedFileTypeError(req.filename)
     }
-    if (typeof req.fileSize === 'number' && req.fileSize > req.maxSize) {
+    const maxSize = FileSizeLimit.create(req.maxSize)
+    const syncMaxBytes = FileSizeLimit.create(
+      req.syncMaxBytes > 0 ? req.syncMaxBytes : req.maxSize
+    )
+    if (typeof req.fileSize === 'number' && maxSize.isExceededBy(req.fileSize)) {
       throw new FileTooLargeError(req.maxSize)
     }
     const logFile = await this.logFilesRepository.create({
       filename: req.filename,
       status: 'PENDING',
     })
-    const tempDir = req.tempDir || tmpdir()
-    await mkdir(tempDir, { recursive: true })
-    const filePath = join(tempDir, `${logFile.id}.upload`)
+    const filePath = this.fileProcessor.resolveUploadPath(req.tempDir, logFile.id)
     try {
-      const checksum = await this.spoolToDisk(req.stream, filePath)
-      const fileStats = await stat(filePath)
-      if (fileStats.size > req.maxSize || req.isTruncated?.()) {
-        await this.failAndCleanup(logFile.id, filePath)
+      await this.fileProcessor.ensureDir(req.tempDir || this.fileProcessor.defaultTempDir())
+      const checksum = await this.fileProcessor.spoolToDisk(req.stream, filePath)
+      const sizeBytes = await this.fileProcessor.getFileSize(filePath)
+      if (maxSize.isExceededBy(sizeBytes) || req.isTruncated?.()) {
+        await this.failAndCleanup(logFile, filePath)
         throw new FileTooLargeError(req.maxSize)
       }
       const duplicate = await this.logFilesRepository.findDuplicateByChecksum(checksum)
@@ -64,70 +65,69 @@ export class ImportLogFileUseCase implements UseCase {
         await this.discardUpload(logFile.id, filePath)
         throw new DuplicateLogFileError(duplicate.id)
       }
-      const spooled = await this.logFilesRepository.update(logFile.id, {
-        checksum,
-        sizeBytes: fileStats.size,
-      })
-      if (fileStats.size <= req.syncMaxBytes) {
+      logFile.stage(checksum, sizeBytes)
+      let spooled: LogFile
+      try {
+        spooled = await this.logFilesRepository.save(logFile)
+      } catch (error) {
+        if (error instanceof ChecksumConflictError) {
+          const existingId =
+            error.existingLogFileId ??
+            (await this.logFilesRepository.findDuplicateByChecksum(checksum))?.id
+          await this.discardUpload(logFile.id, filePath)
+          if (!existingId) throw error
+          throw new DuplicateLogFileError(existingId)
+        }
+        throw error
+      }
+      if (!syncMaxBytes.isExceededBy(sizeBytes)) {
         return this.processLogFileUseCase.execute({
           logFileId: logFile.id,
           filePath,
         })
       }
-      setImmediate(() => {
-        this.processLogFileUseCase
-          .execute({ logFileId: logFile.id, filePath })
-          .catch(() => {})
-      })
+
+      try {
+        await this.logProcessingQueue.enqueue({
+          logFileId: logFile.id,
+          filePath,
+        })
+      } catch (error) {
+        await this.failAndCleanup(logFile, filePath)
+        if (error instanceof LogProcessingUnavailableError) {
+          throw error
+        }
+        throw new LogProcessingUnavailableError(error)
+      }
       return spooled
     } catch (error) {
-      if (error instanceof FileTooLargeError || error instanceof DuplicateLogFileError) {
+      if (
+        error instanceof FileTooLargeError ||
+        error instanceof DuplicateLogFileError ||
+        error instanceof LogProcessingUnavailableError
+      ) {
         throw error
       }
       const current = await this.logFilesRepository.findById(logFile.id)
-      if (current && (current.status === 'PENDING' || current.status === 'PROCESSING')) {
-        await this.failAndCleanup(logFile.id, filePath)
+      if (current?.isActiveUpload()) {
+        await this.failAndCleanup(current, filePath)
       }
       throw error
     }
   }
 
-  private async spoolToDisk (stream: Readable, filePath: string): Promise<string> {
-    const hash = createHash('sha256')
-    await pipeline(
-      stream,
-      async function * teeChecksum (source: AsyncIterable<Buffer | string>) {
-        for await (const chunk of source) {
-          hash.update(chunk)
-          yield chunk
-        }
-      },
-      createWriteStream(filePath)
-    )
-    return hash.digest('hex')
-  }
-
-  private async failAndCleanup (logFileId: string, filePath: string): Promise<void> {
-    await this.removeTempFile(filePath)
-    await this.logFilesRepository.update(logFileId, {
-      status: 'FAILED',
-      processedAt: new Date(),
-    })
+  private async failAndCleanup (logFile: LogFile, filePath: string): Promise<void> {
+    logFile.fail(new Date())
+    await Promise.all([
+      this.fileProcessor.removeFile(filePath),
+      this.logFilesRepository.save(logFile),
+    ])
   }
 
   private async discardUpload (logFileId: string, filePath: string): Promise<void> {
-    await this.removeTempFile(filePath)
-    await this.logFilesRepository.delete(logFileId)
-  }
-
-  private async removeTempFile (filePath: string): Promise<void> {
-    try {
-      await unlink(filePath)
-    } catch {}
-  }
-
-  private isSupportedFilename (filename: string): boolean {
-    const lower = filename.toLowerCase()
-    return ALLOWED_EXTENSIONS.some((extension) => lower.endsWith(extension))
+    await Promise.all([
+      this.fileProcessor.removeFile(filePath),
+      this.logFilesRepository.delete(logFileId),
+    ])
   }
 }
