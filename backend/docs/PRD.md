@@ -129,6 +129,20 @@ erDiagram
 - Indexes: `LogEntry(logFileId)`, `LogEntry(level, timestamp)`, `LogEntry(timestamp)`, GIN index on the search vector (or trigram index on `message`).
 - `LogEntry.id` uses a sortable identifier (e.g., ULID/cuid or `(timestamp, id)` composite) so cursor pagination is stable and efficient without `OFFSET`.
 
+### 5.1 Worked example
+
+Uploading the 5-line fixture `tests/fixtures/sample.log` creates **one** `LogFile` (`totalLines: 5`, `processedLines: 5`, `failedLines: 1`) and **five** `LogEntry` rows, one per line:
+
+| Line | `level` | `source` | `message` |
+|---|---|---|---|
+| `[2024-01-01T10:00:00Z] INFO api-gateway Request started` | `INFO` | `api-gateway` | `Request started` |
+| `[2024-01-01T10:00:01Z] ERROR api-gateway Connection refused` | `ERROR` | `api-gateway` | `Connection refused` |
+| `[2024-01-01T10:00:02Z] WARN worker Disk almost full` | `WARN` | `worker` | `Disk almost full` |
+| `{"level":"DEBUG",...,"service":"auth","message":"token validated",...}` | `DEBUG` | `auth` | `token validated` |
+| `plain line without level` | `UNKNOWN` | `null` | `plain line without level` |
+
+The last line has no recognizable level keyword, so it is classified as `UNKNOWN` and counted in `failedLines` rather than dropped. `/log-files*` endpoints expose the file-level record (status, counters); `/logs*` endpoints expose the five entries (filterable, searchable, paginated); `/dashboard/*` endpoints aggregate the entries (for example, `totalEntries: 5`, `countsByLevel.UNKNOWN: 1`).
+
 ## 6. API Surface
 
 | Method | Path | Purpose |
@@ -176,13 +190,17 @@ flowchart TD
 
 ### 7.3 Synchronous vs. background processing
 
-- For files below a configurable size/line-count threshold, processing runs inline within the upload request for simplicity.
-- For larger files, processing is deferred to a background job so the upload request returns immediately with `PENDING` status. Given `ioredis` is already a dependency, `BullMQ` is the natural choice for the queue; if kept out of scope for time reasons, an in-process `setImmediate`/async-queue fallback is acceptable for the challenge's evaluation scale.
+- For files below a configurable size threshold (`LOG_SYNC_MAX_BYTES`, default 1 MB), processing runs inline within the upload request and the response returns `COMPLETED`.
+- For larger files, processing is deferred via the `LogProcessingQueue` port so the upload request returns immediately with `PENDING` status. Clients poll `GET /log-files/:id`.
+- Queue drivers are selected by `LOG_QUEUE_DRIVER`:
+  - `inline` (default): in-process `setImmediate` fallback — practical for challenge-scale workloads with no Redis queue required for correctness.
+  - `bullmq`: Redis-backed [BullMQ](https://docs.bullmq.io/) queue with retries (`LOG_QUEUE_ATTEMPTS`) and concurrency (`LOG_QUEUE_CONCURRENCY`). An embedded worker starts with the API process and drains jobs (including leftovers from prior runs).
+- Spooled upload files are retained across failed BullMQ attempts so retries can reprocess the same path; partial inserts are cleared before each attempt.
 
 ### 7.4 New dependencies required
 
 - `@fastify/multipart`: multipart file upload support (not currently a dependency; the template only has `@fastify/compress`, `@fastify/cors`, `@fastify/helmet`).
-- `bullmq` (optional): background job queue, reusing the existing Redis connection.
+- `bullmq`: background job queue for large-file processing, reusing the existing Redis connection (optional at runtime via `LOG_QUEUE_DRIVER=inline`).
 - No changes needed to the ORM/DB choice — Prisma + PostgreSQL already fit structured storage and indexing needs.
 
 ## 8. Non-Functional Requirements
@@ -222,7 +240,7 @@ flowchart TD
 | M3 | Import endpoint (`POST /log-files`) with sync processing path |
 | M4 | Query endpoint (`GET /logs`) with filters, text search, cursor + offset pagination |
 | M5 | Dashboard endpoints (`summary`, `trends`, `top-sources`) with Redis caching |
-| M6 | Background processing for large files (queue) |
+| M6 | Background processing for large files (queue) — **delivered**: `LogProcessingQueue` port with `inline` + `bullmq` drivers; embedded BullMQ worker |
 | M7 | Docker Compose finalization, README with execution instructions, E2E test suite, load testing at target volume |
 
 ## 10. Mapping to Evaluation Criteria
