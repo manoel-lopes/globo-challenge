@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
-import { UseCasesModule } from './domain/application/usecases/usecases.module'
+import { UseCasesModule } from './infra/application/usecases.module'
 import { envSchema } from './infra/env/env'
 import { EnvModule } from './infra/env/env.module'
 import { ControllersModule } from './infra/http/presentation/controllers/controllers.module'
