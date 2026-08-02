@@ -11,6 +11,14 @@ test.describe('Logs Page', () => {
     state = await mockApi(page)
   })
 
+  test('navigates back to the Dashboard via the sidebar', async ({ page }) => {
+    await page.goto('/logs')
+    await page.getByRole('link', { name: 'Dashboard' }).click()
+
+    await expect(page).toHaveURL('/')
+    await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible()
+  })
+
   test('displays the first page of all seeded entries by default', async ({ page }) => {
     await page.goto('/logs')
     await expect(page.locator('tbody tr')).toHaveCount(100)

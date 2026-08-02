@@ -16,6 +16,30 @@ test.describe('Dashboard Page', () => {
     state = await mockApi(page)
   })
 
+  test('loads as the default route', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  test('navigates to the Logs page via the sidebar', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('link', { name: 'Logs' }).click()
+
+    await expect(page).toHaveURL('/logs')
+    await expect(page.getByRole('heading', { name: 'Logs', level: 1 })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Logs' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  test('navigates to the Imports page via the sidebar', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('link', { name: 'Imports' }).click()
+
+    await expect(page).toHaveURL('/imports')
+    await expect(page.getByRole('heading', { name: 'Imports', level: 1 })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Imports' })).toHaveAttribute('aria-current', 'page')
+  })
+
   test('displays summary metrics for the default 7-day range', async ({ page }) => {
     await page.goto('/')
 
