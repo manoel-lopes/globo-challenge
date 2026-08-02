@@ -12,6 +12,8 @@
     "lint-staged": "lint-staged",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "prepare": "cd .. && husky frontend/.husky"
   },
   "dependencies": {
@@ -49,6 +51,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@faker-js/faker": "^10.5.0",
+    "@playwright/test": "^1.62.1",
     "@tanstack/router-plugin": "^1.145.10",
     "@tanstack/virtual-file-routes": "^1.161.4",
     "@testing-library/jest-dom": "6.9.1",
