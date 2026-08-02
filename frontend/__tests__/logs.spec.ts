@@ -97,7 +97,9 @@ test.describe('Logs Page', () => {
     await expect(dialog).toBeVisible()
     await expect(dialog.getByText('FATAL', { exact: true })).toBeVisible()
     await expect(dialog.getByText('checkout-api', { exact: true })).toBeVisible()
-    await expect(dialog.getByText(/handled checkout request #1129/)).toBeVisible()
+    await expect(
+      dialog.getByText('checkout-api handled checkout request #1129', { exact: true }),
+    ).toBeVisible()
     await expect(dialog.getByText(/"orderId": "ORD-1129"/)).toBeVisible()
 
     await page.keyboard.press('Escape')
