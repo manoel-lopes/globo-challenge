@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
+import { API_URL } from './infra/api-url'
 import { mockApi, type MockState } from './infra/mock-api'
 
 function logFileRow(page: Page, filename: string) {
@@ -99,7 +100,7 @@ test.describe('Imports Page', () => {
   })
 
   test('shows an empty state when there are no imports', async ({ page }) => {
-    await page.route(/\/log-files(\?[^/]*)?$/, async (route) => {
+    await page.route(new RegExp(`^${API_URL}/log-files(\\?[^/]*)?$`), async (route) => {
       if (route.request().method() !== 'GET') {
         await route.fallback()
         return
@@ -115,7 +116,7 @@ test.describe('Imports Page', () => {
   })
 
   test('shows an error state when imports fail to load', async ({ page }) => {
-    await page.route(/\/log-files(\?[^/]*)?$/, async (route) => {
+    await page.route(new RegExp(`^${API_URL}/log-files(\\?[^/]*)?$`), async (route) => {
       if (route.request().method() !== 'GET') {
         await route.fallback()
         return

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { resolvePresetRange } from '@/util/date-range'
+import { API_URL } from './infra/api-url'
 import { mockApi, type MockState } from './infra/mock-api'
 import { filterLogEntries } from './infra/selectors'
 
@@ -104,7 +105,7 @@ test.describe('Logs Page', () => {
   })
 
   test('shows an error state when logs fail to load', async ({ page }) => {
-    await page.route(/\/logs(\?[^/]*)?$/, async (route) => {
+    await page.route(new RegExp(`^${API_URL}/logs(\\?[^/]*)?$`), async (route) => {
       if (route.request().method() !== 'GET') {
         await route.fallback()
         return

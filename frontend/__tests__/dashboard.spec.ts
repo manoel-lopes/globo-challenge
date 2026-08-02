@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test'
 import { resolvePresetRange } from '@/util/date-range'
 import { formatNumber } from '@/util/format-number'
+import { API_URL } from './infra/api-url'
 import { mockApi, type MockState } from './infra/mock-api'
 import { computeSummary, computeTopSources, filterLogEntries } from './infra/selectors'
 
@@ -109,7 +110,7 @@ test.describe('Dashboard Page', () => {
   })
 
   test('keeps summary loading and shows empty charts when the API fails', async ({ page }) => {
-    await page.route(/\/dashboard\/(summary|trends|top-sources)(\?[^/]*)?$/, async (route) => {
+    await page.route(new RegExp(`^${API_URL}/dashboard/(summary|trends|top-sources)(\\?[^/]*)?$`), async (route) => {
       await route.fulfill({
         status: 500,
         json: { statusCode: 500, message: 'Internal server error', error: 'Internal Server Error' },

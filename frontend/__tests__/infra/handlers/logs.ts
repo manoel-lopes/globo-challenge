@@ -1,10 +1,11 @@
 import type { Page } from '@playwright/test'
 import type { LogLevel } from '@/core/domain/entities/log-entry'
+import { API_URL } from '../api-url'
 import type { MockState } from '../mock-api'
 import { filterLogEntries, paginateCursor, sortByTimestamp } from '../selectors'
 
 export async function registerLogHandlers(page: Page, state: MockState): Promise<void> {
-  await page.route(/\/logs(\?[^/]*)?$/, async (route) => {
+  await page.route(new RegExp(`^${API_URL}/logs(\\?[^/]*)?$`), async (route) => {
     const request = route.request()
     if (request.method() !== 'GET') {
       await route.fallback()
@@ -27,7 +28,7 @@ export async function registerLogHandlers(page: Page, state: MockState): Promise
     await route.fulfill({ json: paginateCursor(sorted, cursor, limit) })
   })
 
-  await page.route(/\/logs\/[^/?]+(\?[^/]*)?$/, async (route) => {
+  await page.route(new RegExp(`^${API_URL}/logs/[^/?]+(\\?[^/]*)?$`), async (route) => {
     const request = route.request()
     if (request.method() !== 'GET') {
       await route.fallback()

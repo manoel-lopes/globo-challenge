@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker'
 import type { Page } from '@playwright/test'
 import type { LogFile } from '@/core/domain/entities/log-file'
+import { API_URL } from '../api-url'
 import type { MockState } from '../mock-api'
 import { paginateOffset } from '../selectors'
 
@@ -68,7 +69,7 @@ function createUploadedLogFile(state: MockState, filename: string, sizeBytes: nu
 }
 
 export async function registerLogFileHandlers(page: Page, state: MockState): Promise<void> {
-  await page.route(/\/log-files(\?[^/]*)?$/, async (route) => {
+  await page.route(new RegExp(`^${API_URL}/log-files(\\?[^/]*)?$`), async (route) => {
     const request = route.request()
     const method = request.method()
 
@@ -100,7 +101,7 @@ export async function registerLogFileHandlers(page: Page, state: MockState): Pro
     await route.fallback()
   })
 
-  await page.route(/\/log-files\/[^/?]+(\?[^/]*)?$/, async (route) => {
+  await page.route(new RegExp(`^${API_URL}/log-files/[^/?]+(\\?[^/]*)?$`), async (route) => {
     const request = route.request()
     if (request.method() !== 'GET') {
       await route.fallback()

@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import { API_URL } from '../api-url'
 import type { MockState } from '../mock-api'
 import { computeSummary, computeTopSources, computeTrends, filterLogEntries } from '../selectors'
 
@@ -11,13 +12,13 @@ function dashboardFilters(url: URL) {
 }
 
 export async function registerDashboardHandlers(page: Page, state: MockState): Promise<void> {
-  await page.route(/\/dashboard\/summary(\?[^/]*)?$/, async (route) => {
+  await page.route(new RegExp(`^${API_URL}/dashboard/summary(\\?[^/]*)?$`), async (route) => {
     const url = new URL(route.request().url())
     const filtered = filterLogEntries(state.logEntries, dashboardFilters(url))
     await route.fulfill({ json: computeSummary(filtered) })
   })
 
-  await page.route(/\/dashboard\/trends(\?[^/]*)?$/, async (route) => {
+  await page.route(new RegExp(`^${API_URL}/dashboard/trends(\\?[^/]*)?$`), async (route) => {
     const url = new URL(route.request().url())
     const filtered = filterLogEntries(state.logEntries, dashboardFilters(url))
     const bucket = (url.searchParams.get('bucket') as 'hour' | 'day' | null) ?? 'day'
@@ -25,7 +26,7 @@ export async function registerDashboardHandlers(page: Page, state: MockState): P
     await route.fulfill({ json: { bucket, series: computeTrends(filtered, bucket, splitByLevel) } })
   })
 
-  await page.route(/\/dashboard\/top-sources(\?[^/]*)?$/, async (route) => {
+  await page.route(new RegExp(`^${API_URL}/dashboard/top-sources(\\?[^/]*)?$`), async (route) => {
     const url = new URL(route.request().url())
     const filtered = filterLogEntries(state.logEntries, dashboardFilters(url))
     const by = (url.searchParams.get('by') as 'volume' | 'errorRate' | null) ?? 'volume'
