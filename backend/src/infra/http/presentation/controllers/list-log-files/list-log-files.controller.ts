@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { PaginationParams } from '@/core/domain/application/pagination-params'
-import type { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
+import { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
 import {
   ApiBadRequestResponse,
   ApiOkResponse,

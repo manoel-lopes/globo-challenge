@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import type { PaginatedItems } from '@/core/domain/application/paginated-items'
-import type { CursorPaginatedItems, LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
+import { CursorPaginatedItems, LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
 import {
   ApiBadRequestResponse,
   ApiOkResponse,
