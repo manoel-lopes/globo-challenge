@@ -30,6 +30,7 @@ jobs:
 
       - name: Create test env
         run: cp .env.test .env.test
+        working-directory: backend
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
