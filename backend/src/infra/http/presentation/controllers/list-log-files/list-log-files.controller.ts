@@ -1,5 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { PaginationParams } from '@/core/domain/application/pagination-params'
+import type { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
 import {
   ApiBadRequestResponse,
   ApiOkResponse,
@@ -9,8 +11,6 @@ import { ZodValidationPipe } from '@/infra/http/presentation/pipes/zod-validatio
 import {
   listLogFilesQuerySchema,
 } from './ports/list-log-files.protocol'
-import type { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
-import { PaginationParams } from '@/core/domain/application/pagination-params'
 
 @ApiTags('Log Files')
 @Controller('log-files')

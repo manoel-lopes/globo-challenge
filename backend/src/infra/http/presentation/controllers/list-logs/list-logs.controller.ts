@@ -1,16 +1,15 @@
 import { Controller, Get, Query } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import type { PaginatedItems } from '@/core/domain/application/paginated-items'
+import type { CursorPaginatedItems, LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
 import {
   ApiBadRequestResponse,
   ApiOkResponse,
   ApiUnprocessableEntityResponse,
 } from '@/infra/http/presentation/decorators/api-responses.decorator'
 import { ZodValidationPipe } from '@/infra/http/presentation/pipes/zod-validation.pipe'
-import type { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
-import { ListLogsQueryDto, listLogsQuerySchema } from './ports/list-logs.protocol'
 import type { LogLevel } from '@/domain/enterprise/entities/log-entry/log-entry.entity'
-import type { PaginatedItems } from '@/core/domain/application/paginated-items'
-import type { CursorPaginatedItems } from '@/domain/application/repositories/log-entries.repository'
+import { ListLogsQueryDto, listLogsQuerySchema } from './ports/list-logs.protocol'
 
 const LOG_LEVELS: Record<LogLevel, true> = {
   TRACE: true,
