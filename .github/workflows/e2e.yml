@@ -28,7 +28,38 @@ jobs:
           cache-dependency-path: backend/pnpm-lock.yaml
 
       - name: Create test env
-        run: cp .env.test .env.test
+        run: |
+          cat > .env.test << 'EOF'
+          # Application
+          NODE_ENV=test
+          PORT=3334
+
+          # Database
+          DB_HOST=localhost
+          DB_PORT=5433
+          DB_USER=postgres
+          DB_PASSWORD=postgres
+          DB_NAME=template_test
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5433/template_test?schema=public
+          DIRECT_URL=postgresql://postgres:postgres@localhost:5433/template_test?schema=public
+
+          # Redis
+          REDIS_HOST=localhost
+          REDIS_PORT=6380
+          REDIS_DB=0
+
+          # Upload
+          MAX_UPLOAD_SIZE=52428800
+          LOG_SYNC_MAX_BYTES=1048576
+
+          # Background queue
+          LOG_QUEUE_DRIVER=inline
+          LOG_QUEUE_CONCURRENCY=1
+          LOG_QUEUE_ATTEMPTS=3
+
+          # Cache
+          CACHE_TTL_SECONDS=60
+          EOF
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
