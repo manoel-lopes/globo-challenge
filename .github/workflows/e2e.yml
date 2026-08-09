@@ -11,6 +11,31 @@ jobs:
       run:
         working-directory: backend
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: template_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,16 +60,16 @@ jobs:
           PORT=3334
 
           # Database
-          DB_HOST=127.0.0.1
+          DB_HOST=localhost
           DB_PORT=5433
           DB_USER=postgres
           DB_PASSWORD=postgres
           DB_NAME=template_test
-          DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/template_test?schema=public
-          DIRECT_URL=postgresql://postgres:postgres@127.0.0.1:5433/template_test?schema=public
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5433/template_test?schema=public
+          DIRECT_URL=postgresql://postgres:postgres@localhost:5433/template_test?schema=public
 
           # Redis
-          REDIS_HOST=127.0.0.1
+          REDIS_HOST=localhost
           REDIS_PORT=6380
           REDIS_DB=0
 
@@ -68,23 +93,6 @@ jobs:
 
       - name: Generate Prisma client
         run: pnpm exec dotenv -e .env.test -- prisma generate
-
-      - name: Start test database and Redis
-        run: pnpm db:up:test
-
-      - name: Wait for PostgreSQL
-        run: |
-          until docker exec template_pg_test pg_isready -U postgres; do
-            sleep 1
-          done
-          # Extra wait for port mapping to be ready on host
-          sleep 5
-
-      - name: Wait for Redis
-        run: |
-          until docker exec template_redis_test redis-cli ping | grep -q PONG; do
-            sleep 1
-          done
 
       - name: Run e2e tests
         run: pnpm test:e2e
