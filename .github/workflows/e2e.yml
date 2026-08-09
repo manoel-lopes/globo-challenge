@@ -57,9 +57,6 @@ jobs:
         env:
           HUSKY: '0'
 
-      - name: Approve pnpm builds
-        run: pnpm approve-builds @prisma/engines @swc/core esbuild msgpackr-extract prisma unrs-resolver @scarf/scarf
-
       - name: Create test env
         run: |
           cat > .env.test << 'EOF'
