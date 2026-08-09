@@ -9,8 +9,6 @@ import { GetDashboardTrendsUseCase } from '@/domain/application/usecases/get-das
 import { GetLogEntryByIdUseCase } from '@/domain/application/usecases/get-log-entry-by-id/get-log-entry-by-id.usecase'
 import { GetLogFileByIdUseCase } from '@/domain/application/usecases/get-log-file-by-id/get-log-file-by-id.usecase'
 import { ImportLogFileUseCase } from '@/domain/application/usecases/import-log-file/import-log-file.usecase'
-import { ListLogEntriesUseCase } from '@/domain/application/usecases/list-log-entries/list-log-entries.usecase'
-import { ListLogFilesUseCase } from '@/domain/application/usecases/list-log-files/list-log-files.usecase'
 import { ProcessLogFileUseCase } from '@/domain/application/usecases/process-log-file/process-log-file.usecase'
 import { ProcessLogFileModule } from '@/infra/application/process-log-file.module'
 import { LogQueueModule } from '@/infra/log-processing/queue/log-queue.module'
@@ -47,18 +45,6 @@ import { RepositoriesModule } from '@/infra/persistence/repositories/repositorie
       inject: [LogFilesRepository],
     },
     {
-      provide: ListLogFilesUseCase,
-      useFactory: (logFilesRepository: LogFilesRepository) =>
-        new ListLogFilesUseCase(logFilesRepository),
-      inject: [LogFilesRepository],
-    },
-    {
-      provide: ListLogEntriesUseCase,
-      useFactory: (logEntriesRepository: LogEntriesRepository) =>
-        new ListLogEntriesUseCase(logEntriesRepository),
-      inject: [LogEntriesRepository],
-    },
-    {
       provide: GetLogEntryByIdUseCase,
       useFactory: (logEntriesRepository: LogEntriesRepository) =>
         new GetLogEntryByIdUseCase(logEntriesRepository),
@@ -87,8 +73,6 @@ import { RepositoriesModule } from '@/infra/persistence/repositories/repositorie
     ProcessLogFileModule,
     ImportLogFileUseCase,
     GetLogFileByIdUseCase,
-    ListLogFilesUseCase,
-    ListLogEntriesUseCase,
     GetLogEntryByIdUseCase,
     GetDashboardSummaryUseCase,
     GetDashboardTrendsUseCase,

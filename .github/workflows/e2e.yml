@@ -1,16 +1,40 @@
-name: E2E
+name: Backend E2E tests
 
 on:
   pull_request:
 
-defaults:
-  run:
-    working-directory: backend
-
 jobs:
   e2e:
-    name: E2E tests
+    name: Backend E2E tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: template_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
 
     steps:
       - name: Checkout
@@ -28,31 +52,47 @@ jobs:
           cache: pnpm
           cache-dependency-path: backend/pnpm-lock.yaml
 
-      - name: Create test env
-        run: cp .env.test.example .env.test
-
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           HUSKY: '0'
 
+      - name: Create test env
+        run: |
+          cat > .env.test << 'EOF'
+          # Application
+          NODE_ENV=test
+          PORT=3334
+
+          # Database
+          DB_HOST=localhost
+          DB_PORT=5432
+          DB_USER=postgres
+          DB_PASSWORD=postgres
+          DB_NAME=template_test
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/template_test?schema=public
+          DIRECT_URL=postgresql://postgres:postgres@localhost:5432/template_test?schema=public
+
+          # Redis
+          REDIS_HOST=localhost
+          REDIS_PORT=6379
+          REDIS_DB=0
+
+          # Upload
+          MAX_UPLOAD_SIZE=52428800
+          LOG_SYNC_MAX_BYTES=1048576
+
+          # Background queue
+          LOG_QUEUE_DRIVER=inline
+          LOG_QUEUE_CONCURRENCY=1
+          LOG_QUEUE_ATTEMPTS=3
+
+          # Cache
+          CACHE_TTL_SECONDS=60
+          EOF
+
       - name: Generate Prisma client
         run: pnpm exec dotenv -e .env.test -- prisma generate
-
-      - name: Start test database and Redis
-        run: pnpm db:up:test
-
-      - name: Wait for PostgreSQL
-        run: |
-          until docker exec template_pg_test pg_isready -U postgres; do
-            sleep 1
-          done
-
-      - name: Wait for Redis
-        run: |
-          until docker exec template_redis_test redis-cli ping | grep -q PONG; do
-            sleep 1
-          done
 
       - name: Run e2e tests
         run: pnpm test:e2e

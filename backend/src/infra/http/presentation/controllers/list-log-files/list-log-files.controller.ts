@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
-import { ListLogFilesUseCase } from '@/domain/application/usecases/list-log-files/list-log-files.usecase'
+import { PaginationParams } from '@/core/domain/application/pagination-params'
+import { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
 import {
   ApiBadRequestResponse,
   ApiOkResponse,
@@ -8,14 +9,13 @@ import {
 } from '@/infra/http/presentation/decorators/api-responses.decorator'
 import { ZodValidationPipe } from '@/infra/http/presentation/pipes/zod-validation.pipe'
 import {
-  ListLogFilesQueryDto,
   listLogFilesQuerySchema,
 } from './ports/list-log-files.protocol'
 
 @ApiTags('Log Files')
 @Controller('log-files')
 export class ListLogFilesController {
-  constructor (private readonly listLogFilesUseCase: ListLogFilesUseCase) {}
+  constructor (private readonly logFilesRepository: LogFilesRepository) {}
 
   @Get()
   @ApiOperation({ summary: 'List imported log files' })
@@ -23,8 +23,12 @@ export class ListLogFilesController {
   @ApiBadRequestResponse()
   @ApiUnprocessableEntityResponse()
   async handle (
-    @Query(new ZodValidationPipe(listLogFilesQuerySchema)) query: ListLogFilesQueryDto
+    @Query(new ZodValidationPipe(listLogFilesQuerySchema)) req: PaginationParams
   ) {
-    return this.listLogFilesUseCase.execute(query)
+    return this.logFilesRepository.findMany({
+      page: req.page ?? 1,
+      pageSize: req.pageSize ?? 10,
+      order: req.order ?? 'desc',
+    })
   }
 }

@@ -717,3 +717,290 @@ This applies equally to new domain concepts as they're introduced — e.g. the p
 | `class-validator` decorators on request DTOs | Use a Zod schema + `ZodValidationPipe` |
 | Raw string literals instead of enum/`z.enum` members (`'production'`, `'PENDING'`) | Use the named schema/enum value everywhere |
 | Hand-edited files under `prisma/migrations/` | Regenerate via `pnpm migrate:dev` / `pnpm migrate:test` |
+| **Top-level `function` declarations inside class files** (controllers, use cases, entities, mappers, repositories) | **Move to `private` methods of the class; only extract to a shared utility file (`src/lib/` or `src/shared/util/`) if reused in ≥2 places** |
+| **Query controllers using use cases for simple repository calls** | **Queries without business logic (filtering, pagination, sorting) → call repository directly from controller; only use use cases for commands (mutations) and complex reads requiring orchestration/aggregation** |
+
+---
+
+## Class-Internal Logic: Private Methods Over Top-Level Functions
+
+**Rule**: Never declare `function foo() {}` at the top level of a file that exports a class. All logic specific to that class belongs as `private` methods on the class.
+
+### ❌ BAD: Top-level functions in a controller file
+
+```typescript
+// src/infra/http/presentation/controllers/list-logs/list-logs.controller.ts
+function isLogLevel (value: string): value is LogLevel { ... }
+function parseLevels (level?: string): LogLevel[] | undefined { ... }
+function buildFilter (query: ListLogsQueryDto) { ... }
+
+export class ListLogsController {
+  async handle (query: ListLogsQueryDto) {
+    const filter = buildFilter(query) // ❌ external dependency
+    // ...
+  }
+}
+```
+
+### ✅ GOOD: Private methods on the class
+
+```typescript
+export class ListLogsController {
+  async handle (query: ListLogsQueryDto) {
+    const filter = this.buildFilter(query) // ✅ encapsulated
+    // ...
+  }
+
+  private buildFilter (query: ListLogsQueryDto) { ... }
+  private parseLevels (level?: string): LogLevel[] | undefined { ... }
+  private isLogLevel (value: string): value is LogLevel { ... }
+}
+```
+
+### When to extract to a shared utility
+
+Only create a top-level function in a **shared utility file** (`src/lib/`, `src/shared/util/`, `src/core/util/`) if:
+1. The function is **pure** (no side effects, no class dependencies)
+2. It's used in **≥2 different classes/files**
+3. It represents a **genuinely reusable concept** (date formatting, string manipulation, validation helpers)
+
+```typescript
+// ✅ GOOD: shared utility used across controllers, use cases, tests
+// src/lib/format-date.ts
+export function formatDateTime (date: Date): string { ... }
+export function parseISODate (str: string): Date | null { ... }
+```
+
+```typescript
+// ✅ Usage in multiple files
+// controller A
+import { formatDateTime } from '@/lib/format-date'
+
+// controller B
+import { formatDateTime } from '@/lib/format-date'
+
+// use case
+import { parseISODate } from '@/lib/format-date'
+```
+
+### Benefits
+
+| Benefit | Explanation |
+| --- | --- |
+| **Encapsulation** | Helper logic travels with the class; no accidental coupling to file-scoped state |
+| **Testability** | Private methods tested via public `handle()` / `execute()`; no need to export internals |
+| **Refactoring safety** | Renaming/moving class keeps all its logic together |
+| **Discoverability** | `this.` autocomplete reveals all helpers; no hunting for top-level `function` |
+| **Dependency clarity** | Class constructor shows all external deps; private methods imply no extra deps |
+
+---
+
+## Query vs Command: When to Use a Use Case
+
+**Rule**: Use cases are for **commands** (mutations with business logic) and **complex reads** (orchestration, aggregation, cross-repository). Simple queries (filter + paginate + sort) go straight to the repository from the controller.
+
+### Decision Matrix
+
+| Scenario | Layer | Example |
+| --- | --- | --- |
+| Create/Update/Delete with validation, side effects | **Use Case** | `ImportLogFileUseCase`, `CreateAccountUseCase` |
+| Read with business rules, multi-repo orchestration | **Use Case** | `GetDashboardSummaryUseCase` (aggregates from multiple queries) |
+| Single entity by ID | **Use Case** (optional) | `GetLogEntryByIdUseCase` — wraps `ResourceNotFoundError` translation |
+| Filtered list with pagination (offset/cursor) | **Repository directly from Controller** | `ListLogsController` → `LogEntriesRepository.findMany()` |
+| Filtered list with cursor pagination | **Repository directly from Controller** | `ListLogsController` → `LogEntriesRepository.findManyByCursor()` |
+| Single file status lookup | **Repository directly from Controller** | `ListLogFilesController` → `LogFilesRepository.findMany()` |
+
+### Why This Split?
+
+| Layer | Responsibility |
+| --- | --- |
+| **Controller** | HTTP boundary: validate request (Zod), call **one** thing, translate errors |
+| **Use Case** | **Write model**: commands, invariants, transactions, domain events, multi-port orchestration |
+| **Repository** | **Read model**: queries, filters, pagination, projections, caching |
+| **Query Service** (future) | If a read pattern grows complex (multiple repositories, caching strategy), extract to a `*QueryService` — not a `UseCase` |
+
+### Anti-Pattern: Use Case as Pass-Through
+
+```typescript
+// ❌ BAD: use case adds zero business logic, only delegates
+export class ListLogEntriesUseCase implements UseCase {
+  constructor (private readonly repo: LogEntriesRepository) {}
+  async execute (req: ListLogEntriesRequest) {
+    return this.repo.findMany(this.buildFilter(req), req) // just forwarding
+  }
+  private buildFilter (...) { ... }
+}
+
+// Controller
+constructor (private readonly useCase: ListLogEntriesUseCase) {}
+async handle (query) { return this.useCase.execute(query) }
+```
+
+**Fix**: Call repository directly from controller, move `buildFilter` to private method.
+
+```typescript
+// ✅ GOOD: controller owns query construction
+export class ListLogsController {
+  constructor (private readonly repo: LogEntriesRepository) {}
+  async handle (query: ListLogsQueryDto) {
+    const filter = this.buildFilter(query)
+    return this.repo.findMany(filter, { page: query.page, pageSize: query.pageSize })
+  }
+  private buildFilter (query: ListLogsQueryDto) { ... }
+}
+```
+
+### Existing Use Cases That Are Commands (Keep)
+
+- `ImportLogFileUseCase` — validation, checksum, dedup, sync/async routing, queue enqueue
+- `ProcessLogFileUseCase` — claim, delete old, stream parse, batch ingest, progress, cache invalidation
+- `CreateAccountUseCase` (template) — email uniqueness, password hash, create
+
+### Existing Use Cases That Are Complex Reads (Keep)
+
+- `GetDashboardSummaryUseCase` — parallel count + groupBy + distinct sources
+- `GetDashboardTrendsUseCase` — time-bucketed series with optional split-by-level
+- `GetDashboardTopSourcesUseCase` — ranked sources by volume or error rate
+
+### Use Cases That Were Queries (Removed/Should Be Direct Repo)
+
+- ~~`ListLogEntriesUseCase`~~ → **deleted**, now direct repo in `ListLogsController`
+- ~~`ListLogFilesUseCase`~~ → **never existed**, `ListLogFilesController` already direct repo
+
+---
+
+## Lean Controller Pattern
+
+Controllers MUST be lean and only handle HTTP concerns. All business logic and data access MUST live in use cases **or repositories for simple queries**.
+
+**Rules:**
+
+- ✅ Keep controller `handle` methods short — validate, call one use case **or repository**, translate errors
+- ✅ Call use cases for **commands** and **complex reads**; call repositories directly for **simple queries**
+- ✅ Validate the request body/params/query with a Zod schema via `ZodValidationPipe`
+- ✅ Translate domain errors to Nest HTTP exceptions with `instanceof` checks
+- ❌ Never put business logic (branching on domain state, calculations, orchestration) in controllers
+- ❌ Never inject or call repositories directly from controllers **for commands** (only for simple queries)
+- ❌ Never construct or mutate domain entities in controllers
+
+---
+
+## Test File Organization
+
+**Rule**: Each component (controller, use case, entity, value object, repository, service, helper) MUST have exactly **one** test file. All tests for that component live in that single file, organized under one top-level `describe` block named after the component.
+
+### File Naming
+
+| Component Type | Test File Suffix | Location |
+| --- | --- | --- |
+| Unit tests (domain, application, infra helpers) | `.test.ts` | Co-located with the source file |
+| E2E tests (controllers) | `.e2e-spec.ts` | Co-located with the controller in `ports/` or controller folder |
+
+### Structure
+
+```typescript
+// ✅ GOOD: one test file per component, one top-level describe
+// src/domain/enterprise/entities/log-file/log-file.entity.test.ts
+import { describe, it, expect } from 'vitest'
+import { LogFile } from './log-file.entity'
+
+describe('LogFile', () => {
+  describe('create', () => {
+    it('should create a log file with PENDING status', () => { ... })
+    it('should validate filename through LogFileName VO', () => { ... })
+    it('should generate UUID when id not provided', () => { ... })
+  })
+
+  describe('stage', () => {
+    it('should set checksum and sizeBytes', () => { ... })
+    it('should update updatedAt timestamp', () => { ... })
+  })
+
+  describe('complete', () => {
+    it('should set status to COMPLETED with counters', () => { ... })
+    it('should set processedAt timestamp', () => { ... })
+  })
+
+  describe('fail', () => {
+    it('should set status to FAILED', () => { ... })
+    it('should accept optional counters', () => { ... })
+  })
+})
+```
+
+```typescript
+// ✅ GOOD: one e2e test file per controller, one top-level describe
+// src/infra/http/presentation/controllers/create-log-file/create-log-file.controller.e2e-spec.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { INestApplication } from '@nestjs/common'
+import { makeApp } from '@tests/helpers/app/make-app'
+import { uploadLogFile } from '@tests/helpers/domain/enterprise/logs/log-requests'
+
+describe('CreateLogFileController (E2E)', () => {
+  let app: INestApplication
+
+  beforeAll(async () => { app = await makeApp() })
+  afterAll(async () => { await app.close() })
+
+  describe('basic upload', () => {
+    it('should return 400 when no file is uploaded', async () => { ... })
+    it('should return 415 for unsupported file types', async () => { ... })
+    it.each([...])('should import %s and return COMPLETED', async () => { ... })
+  })
+
+  describe('size limit', () => {
+    it('should return 413 when file exceeds maximum allowed size', async () => { ... })
+  })
+
+  describe('async processing', () => {
+    it('should return PENDING for files above the sync threshold', async () => { ... })
+  })
+
+  describe('concurrent duplicate detection', () => {
+    it('should return 409 for one of two concurrent identical uploads', async () => { ... })
+  })
+
+  describe('BullMQ queue processing', () => {
+    it('should enqueue large files via BullMQ and complete asynchronously', async () => { ... })
+  })
+
+  describe('log classification - severity levels', () => {
+    it('should classify every severity level and its aliases', async () => { ... })
+  })
+
+  describe('log classification - custom formats', () => {
+    it('should fall back to keyword heuristics for non-standard formats', async () => { ... })
+  })
+
+  describe('log classification - timestamps', () => {
+    it('should normalize an offset-aware timestamp to UTC', async () => { ... })
+    it('should parse epoch millis and ISO timestamps to the same instant', async () => { ... })
+    it('should infer a sensible year for year-less syslog timestamps', async () => { ... })
+    it('should fall back to import time when the timestamp is unparseable', async () => { ... })
+    it('should fall back to import time when no timestamp is present', async () => { ... })
+  })
+
+  describe('log classification - determinism', () => {
+    it('should classify the same log lines identically across imports', async () => { ... })
+  })
+})
+```
+
+### Anti-Patterns
+
+| Anti-Pattern | Fix |
+| --- | --- |
+| **Multiple test files for one component** (e.g., `create-log-file.controller.e2e-spec.ts` + `create-log-file-queue.controller.e2e-spec.ts` + `log-classification.e2e-spec.ts`) | **Merge into one file: `create-log-file.controller.e2e-spec.ts` with nested `describe` blocks** |
+| **No top-level `describe`** (tests at file root) | **Wrap all tests in `describe('ComponentName', () => { ... })`** |
+| **Test file not co-located with source** | **Place `.test.ts` / `.e2e-spec.ts` next to the source file** |
+| **Test file named after a scenario, not the component** | **Name after component: `dashboard.controller.e2e-spec.ts`, not `dashboard-empty-state.e2e-spec.ts`** |
+
+### Benefits
+
+| Benefit | Explanation |
+| --- | --- |
+| **Single source of truth** | All tests for a component in one place — easy to find, run, maintain |
+| **Clear ownership** | One file = one component's contract |
+| **Parallelization** | Vitest runs each file in parallel; one file per component maximizes parallelism |
+| **No duplicate setup** | Shared `beforeAll`/`afterAll` per component, not duplicated across files |
+| **Discoverability** | `find . -name '*.test.ts'` reveals exact test coverage |

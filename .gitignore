@@ -1,3 +1,7 @@
+docs/
 .cursor/
 .agents/
 .playwright/
+.opencode/
+.trae/
+.windsurf/
