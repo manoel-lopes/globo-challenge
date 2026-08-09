@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollText } from 'lucide-react'
+import type { LogEntry } from '@/core/domain/entities/log-entry'
 import { LogLevelBadge } from '@/components/log-level-badge'
 import { LogEntryDetailDialog } from '@/components/logs/log-entry-detail-dialog'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -12,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { LogEntry } from '@/core/domain/entities/log-entry'
 import { useGetLogs } from '@/hooks/application/useGetLogs'
 import type { LogsFilters } from '@/util/build-log-filters'
 import { formatDateTime } from '@/util/format-date'
@@ -133,7 +133,6 @@ export function LogEntriesTable({ filters }: LogEntriesTableProps) {
           )}
         </div>
       </div>
-
       <LogEntryDetailDialog
         entry={selected}
         open={!!selected}

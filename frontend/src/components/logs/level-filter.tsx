@@ -1,4 +1,5 @@
 import { ListFilter } from 'lucide-react'
+import type { LogLevel } from '@/core/domain/entities/log-entry'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -8,9 +9,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { LogLevel } from '@/core/domain/entities/log-entry'
-import { cn } from '@/lib/utils'
 import { LOG_LEVEL_ORDER } from '@/util/log-level'
+import { cn } from '@/lib/utils'
 
 interface LevelFilterProps {
   value: LogLevel[]
@@ -34,7 +34,6 @@ export function LevelFilter({ value, onChange, className }: LevelFilterProps) {
       : value.length === 1
         ? value[0]
         : `${value.length} levels`
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

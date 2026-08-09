@@ -1,3 +1,4 @@
+import type { LogEntry } from '@/core/domain/entities/log-entry'
 import { LogLevelBadge } from '@/components/log-level-badge'
 import {
   Dialog,
@@ -6,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { LogEntry } from '@/core/domain/entities/log-entry'
 import { formatDateTime } from '@/util/format-date'
 
 interface LogEntryDetailDialogProps {

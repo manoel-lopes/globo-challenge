@@ -12,7 +12,7 @@ export default [
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   ...neostandard({
-    ignores: [...resolveIgnoresFromGitignore(), '**/routeTree.gen.ts'],
+    ignores: [...resolveIgnoresFromGitignore(), '**/routeTree.gen.ts', '**/.cursor/**'],
   }),
   {
     plugins: {

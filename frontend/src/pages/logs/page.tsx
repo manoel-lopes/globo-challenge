@@ -2,17 +2,17 @@ import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import { z } from 'zod'
+import type { LogLevel } from '@/core/domain/entities/log-entry'
 import { LevelFilter } from '@/components/logs/level-filter'
 import { LogEntriesTable } from '@/components/logs/log-entries-table'
 import { DateRangeFilter } from '@/components/shared/date-range-filter'
 import { LogFileSelect } from '@/components/shared/log-file-select'
 import { Input } from '@/components/ui/input'
-import type { LogLevel } from '@/core/domain/entities/log-entry'
 import { useDebouncedValue } from '@/hooks/util/useDebouncedValue'
 import { type DateRange, type DateRangePresetId, resolvePresetRange } from '@/util/date-range'
 
 const logsSearchSchema = z.object({
-  logFileId: z.string().uuid().optional(),
+  logFileId: z.uuid().optional(),
 })
 
 export const Route = createFileRoute('/logs')({
@@ -40,7 +40,6 @@ function LogsPage() {
     }),
     [searchLogFileId, range.from, range.to, levels, debouncedQuery],
   )
-
   return (
     <div className='mx-auto flex max-w-7xl flex-col gap-6'>
       <header className='space-y-1'>
@@ -49,7 +48,6 @@ function LogsPage() {
           Browse, filter, and inspect classified log entries.
         </p>
       </header>
-
       <div className='flex flex-col gap-2 lg:flex-row lg:flex-wrap'>
         <LogFileSelect
           value={searchLogFileId}
@@ -81,7 +79,6 @@ function LogsPage() {
           />
         </div>
       </div>
-
       <LogEntriesTable filters={filters} />
     </div>
   )

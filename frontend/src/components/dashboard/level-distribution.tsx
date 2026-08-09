@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { PieChart as PieChartIcon } from 'lucide-react'
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { DashboardSummary } from '@/core/domain/entities/dashboard-summary'
 import { ChartTooltip } from '@/components/dashboard/chart-tooltip'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -32,6 +32,14 @@ export function LevelDistribution({ data, isLoading }: LevelDistributionProps) {
     const total = slices.reduce((sum, slice) => sum + slice.value, 0)
     return { slices, total }
   }, [data])
+
+  const cellColors = useMemo(() => {
+    const colors: Record<string, string> = {}
+    slices.forEach((slice) => {
+      colors[slice.level] = slice.color
+    })
+    return colors
+  }, [slices])
   return (
     <Card className='gap-4'>
       <CardHeader>
@@ -62,11 +70,11 @@ export function LevelDistribution({ data, isLoading }: LevelDistributionProps) {
                     outerRadius={82}
                     paddingAngle={2}
                     strokeWidth={0}
-                  >
-                    {slices.map((slice) => (
-                      <Cell key={slice.level} fill={slice.color} />
-                    ))}
-                  </Pie>
+                    cell={(props) => {
+                      const color = cellColors[props.payload?.level ?? '']
+                      return color ? <path {...props} fill={color} /> : null
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className='pointer-events-none absolute inset-0 flex flex-col items-center justify-center'>
