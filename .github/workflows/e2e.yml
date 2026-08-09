@@ -44,7 +44,7 @@ jobs:
         working-directory: backend
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           HUSKY: '0'
         working-directory: backend
