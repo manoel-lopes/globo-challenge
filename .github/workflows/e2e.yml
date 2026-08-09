@@ -52,13 +52,13 @@ jobs:
           cache: pnpm
           cache-dependency-path: backend/pnpm-lock.yaml
 
-      - name: Approve pnpm builds
-        run: pnpm approve-builds @prisma/engines @swc/core esbuild msgpackr-extract prisma unrs-resolver @scarf/scarf
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           HUSKY: '0'
+
+      - name: Approve pnpm builds
+        run: pnpm approve-builds @prisma/engines @swc/core esbuild msgpackr-extract prisma unrs-resolver @scarf/scarf
 
       - name: Create test env
         run: |
