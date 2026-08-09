@@ -41,11 +41,13 @@ jobs:
 
       - name: Setup pnpm
         run: corepack enable pnpm && pnpm --version
+        working-directory: backend
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         env:
           HUSKY: '0'
+        working-directory: backend
 
       - name: Create test env
         run: |
@@ -80,9 +82,12 @@ jobs:
           # Cache
           CACHE_TTL_SECONDS=60
           EOF
+        working-directory: backend
 
       - name: Generate Prisma client
         run: pnpm exec dotenv -e .env.test -- prisma generate
+        working-directory: backend
 
       - name: Run e2e tests
         run: pnpm test:e2e
+        working-directory: backend
