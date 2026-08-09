@@ -43,6 +43,10 @@ jobs:
         run: corepack enable pnpm && pnpm --version
         working-directory: backend
 
+      - name: Approve pnpm builds
+        run: pnpm approve-builds @prisma/engines @swc/core esbuild msgpackr-extract prisma unrs-resolver @scarf/scarf
+        working-directory: backend
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
         env:
