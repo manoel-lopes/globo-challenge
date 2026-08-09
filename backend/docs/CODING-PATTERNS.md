@@ -882,3 +882,125 @@ Controllers MUST be lean and only handle HTTP concerns. All business logic and d
 - ❌ Never put business logic (branching on domain state, calculations, orchestration) in controllers
 - ❌ Never inject or call repositories directly from controllers **for commands** (only for simple queries)
 - ❌ Never construct or mutate domain entities in controllers
+
+---
+
+## Test File Organization
+
+**Rule**: Each component (controller, use case, entity, value object, repository, service, helper) MUST have exactly **one** test file. All tests for that component live in that single file, organized under one top-level `describe` block named after the component.
+
+### File Naming
+
+| Component Type | Test File Suffix | Location |
+| --- | --- | --- |
+| Unit tests (domain, application, infra helpers) | `.test.ts` | Co-located with the source file |
+| E2E tests (controllers) | `.e2e-spec.ts` | Co-located with the controller in `ports/` or controller folder |
+
+### Structure
+
+```typescript
+// ✅ GOOD: one test file per component, one top-level describe
+// src/domain/enterprise/entities/log-file/log-file.entity.test.ts
+import { describe, it, expect } from 'vitest'
+import { LogFile } from './log-file.entity'
+
+describe('LogFile', () => {
+  describe('create', () => {
+    it('should create a log file with PENDING status', () => { ... })
+    it('should validate filename through LogFileName VO', () => { ... })
+    it('should generate UUID when id not provided', () => { ... })
+  })
+
+  describe('stage', () => {
+    it('should set checksum and sizeBytes', () => { ... })
+    it('should update updatedAt timestamp', () => { ... })
+  })
+
+  describe('complete', () => {
+    it('should set status to COMPLETED with counters', () => { ... })
+    it('should set processedAt timestamp', () => { ... })
+  })
+
+  describe('fail', () => {
+    it('should set status to FAILED', () => { ... })
+    it('should accept optional counters', () => { ... })
+  })
+})
+```
+
+```typescript
+// ✅ GOOD: one e2e test file per controller, one top-level describe
+// src/infra/http/presentation/controllers/create-log-file/create-log-file.controller.e2e-spec.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { INestApplication } from '@nestjs/common'
+import { makeApp } from '@tests/helpers/app/make-app'
+import { uploadLogFile } from '@tests/helpers/domain/enterprise/logs/log-requests'
+
+describe('CreateLogFileController (E2E)', () => {
+  let app: INestApplication
+
+  beforeAll(async () => { app = await makeApp() })
+  afterAll(async () => { await app.close() })
+
+  describe('basic upload', () => {
+    it('should return 400 when no file is uploaded', async () => { ... })
+    it('should return 415 for unsupported file types', async () => { ... })
+    it.each([...])('should import %s and return COMPLETED', async () => { ... })
+  })
+
+  describe('size limit', () => {
+    it('should return 413 when file exceeds maximum allowed size', async () => { ... })
+  })
+
+  describe('async processing', () => {
+    it('should return PENDING for files above the sync threshold', async () => { ... })
+  })
+
+  describe('concurrent duplicate detection', () => {
+    it('should return 409 for one of two concurrent identical uploads', async () => { ... })
+  })
+
+  describe('BullMQ queue processing', () => {
+    it('should enqueue large files via BullMQ and complete asynchronously', async () => { ... })
+  })
+
+  describe('log classification - severity levels', () => {
+    it('should classify every severity level and its aliases', async () => { ... })
+  })
+
+  describe('log classification - custom formats', () => {
+    it('should fall back to keyword heuristics for non-standard formats', async () => { ... })
+  })
+
+  describe('log classification - timestamps', () => {
+    it('should normalize an offset-aware timestamp to UTC', async () => { ... })
+    it('should parse epoch millis and ISO timestamps to the same instant', async () => { ... })
+    it('should infer a sensible year for year-less syslog timestamps', async () => { ... })
+    it('should fall back to import time when the timestamp is unparseable', async () => { ... })
+    it('should fall back to import time when no timestamp is present', async () => { ... })
+  })
+
+  describe('log classification - determinism', () => {
+    it('should classify the same log lines identically across imports', async () => { ... })
+  })
+})
+```
+
+### Anti-Patterns
+
+| Anti-Pattern | Fix |
+| --- | --- |
+| **Multiple test files for one component** (e.g., `create-log-file.controller.e2e-spec.ts` + `create-log-file-queue.controller.e2e-spec.ts` + `log-classification.e2e-spec.ts`) | **Merge into one file: `create-log-file.controller.e2e-spec.ts` with nested `describe` blocks** |
+| **No top-level `describe`** (tests at file root) | **Wrap all tests in `describe('ComponentName', () => { ... })`** |
+| **Test file not co-located with source** | **Place `.test.ts` / `.e2e-spec.ts` next to the source file** |
+| **Test file named after a scenario, not the component** | **Name after component: `dashboard.controller.e2e-spec.ts`, not `dashboard-empty-state.e2e-spec.ts`** |
+
+### Benefits
+
+| Benefit | Explanation |
+| --- | --- |
+| **Single source of truth** | All tests for a component in one place — easy to find, run, maintain |
+| **Clear ownership** | One file = one component's contract |
+| **Parallelization** | Vitest runs each file in parallel; one file per component maximizes parallelism |
+| **No duplicate setup** | Shared `beforeAll`/`afterAll` per component, not duplicated across files |
+| **Discoverability** | `find . -name '*.test.ts'` reveals exact test coverage |
