@@ -35,16 +35,16 @@ jobs:
           PORT=3334
 
           # Database
-          DB_HOST=localhost
+          DB_HOST=127.0.0.1
           DB_PORT=5433
           DB_USER=postgres
           DB_PASSWORD=postgres
           DB_NAME=template_test
-          DATABASE_URL=postgresql://postgres:postgres@localhost:5433/template_test?schema=public
-          DIRECT_URL=postgresql://postgres:postgres@localhost:5433/template_test?schema=public
+          DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/template_test?schema=public
+          DIRECT_URL=postgresql://postgres:postgres@127.0.0.1:5433/template_test?schema=public
 
           # Redis
-          REDIS_HOST=localhost
+          REDIS_HOST=127.0.0.1
           REDIS_PORT=6380
           REDIS_DB=0
 
@@ -77,6 +77,8 @@ jobs:
           until docker exec template_pg_test pg_isready -U postgres; do
             sleep 1
           done
+          # Extra wait for port mapping to be ready on host
+          sleep 5
 
       - name: Wait for Redis
         run: |
