@@ -3,18 +3,18 @@ import { LogEntry } from '@/domain/enterprise/entities/log-entry/log-entry.entit
 
 export class PrismaLogEntryMapper {
   static toDomain (raw: PrismaLogEntry): LogEntry {
-    return LogEntry.restore({
-      id: raw.id,
-      logFileId: raw.logFileId,
-      level: raw.level,
-      timestamp: raw.timestamp,
-      source: raw.source,
-      message: raw.message,
-      rawLine: raw.rawLine,
-      metadata: toMetadata(raw.metadata),
-      createdAt: raw.createdAt,
-      updatedAt: raw.updatedAt,
-    })
+    return LogEntry.create(
+      {
+        logFileId: raw.logFileId,
+        level: raw.level,
+        timestamp: raw.timestamp,
+        source: raw.source,
+        message: raw.message,
+        rawLine: raw.rawLine,
+        metadata: PrismaLogEntryMapper.toMetadata(raw.metadata),
+      },
+      raw.id
+    )
   }
 
   static toCreateInput (entry: {
@@ -38,11 +38,11 @@ export class PrismaLogEntryMapper {
         : entry.metadata,
     }
   }
-}
 
-function toMetadata (value: Prisma.JsonValue | null): Record<string, unknown> | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return null
+  private static toMetadata (value: Prisma.JsonValue | null): Record<string, unknown> | null {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return null
+    }
+    return Object.fromEntries(Object.entries(value))
   }
-  return Object.fromEntries(Object.entries(value))
 }
