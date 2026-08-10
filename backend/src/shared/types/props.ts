@@ -1,3 +1,7 @@
-import { PrimitiveAndDates } from './primitive-and-dates'
+type NonMethodKeys<T> = {
+  [K in keyof T]: T[K] extends (...args: never[]) => unknown
+    ? never
+    : K
+}[keyof T]
 
-export type Props<T> = Omit<PrimitiveAndDates<T>, 'id' | 'createdAt' | 'updatedAt'>
+export type Props<T> = Omit<Pick<T, NonMethodKeys<T>>, 'id' | 'createdAt' | 'updatedAt'>
