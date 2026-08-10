@@ -3,19 +3,19 @@ import { LogFile } from '@/domain/enterprise/entities/log-file/log-file.entity'
 
 export class PrismaLogFileMapper {
   static toDomain (raw: PrismaLogFile): LogFile {
-    return LogFile.restore({
-      id: raw.id,
-      filename: raw.filename,
-      status: raw.status,
-      checksum: raw.checksum,
-      sizeBytes: raw.sizeBytes,
-      totalLines: raw.totalLines,
-      processedLines: raw.processedLines,
-      failedLines: raw.failedLines,
-      processedAt: raw.processedAt,
-      createdAt: raw.createdAt,
-      updatedAt: raw.updatedAt,
-    })
+    return LogFile.create(
+      {
+        filename: raw.filename,
+        status: raw.status,
+        checksum: raw.checksum,
+        sizeBytes: raw.sizeBytes,
+        totalLines: raw.totalLines,
+        processedLines: raw.processedLines,
+        failedLines: raw.failedLines,
+        processedAt: raw.processedAt,
+      },
+      raw.id
+    )
   }
 
   static toPersistence (logFile: LogFile) {
