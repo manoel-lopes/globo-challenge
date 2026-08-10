@@ -1,8 +1,6 @@
-import { useMemo } from 'react'
 import { LineChart as LineChartIcon } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { DashboardTrends } from '@/core/domain/entities/dashboard-trends'
-import type { LogLevel } from '@/core/domain/entities/log-entry'
 import { ChartTooltip } from '@/components/dashboard/chart-tooltip'
 import { EmptyState } from '@/components/shared/empty-state'
 import {
@@ -14,9 +12,10 @@ import {
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useTrendsChart } from '@/hooks/presentation/useTrendsChart'
 import { formatShortDate } from '@/util/format-date'
 import { formatNumber } from '@/util/format-number'
-import { LOG_LEVEL_CHART_COLORS, LOG_LEVEL_ORDER } from '@/util/log-level'
+import { LOG_LEVEL_CHART_COLORS } from '@/util/log-level'
 
 interface TrendsChartProps {
   data?: DashboardTrends
@@ -26,21 +25,7 @@ interface TrendsChartProps {
 }
 
 export function TrendsChart({ data, isLoading, bucket, onBucketChange }: TrendsChartProps) {
-  const { rows, levels } = useMemo(() => {
-    if (!data) return { rows: [], levels: [] as LogLevel[] }
-    const activeLevels = new Set<LogLevel>()
-    const mapped = data.series.map((point) => {
-      const row: Record<string, string | number> = { bucket: point.bucket, total: point.total }
-      for (const level of LOG_LEVEL_ORDER) {
-        const count = point.countsByLevel?.[level] ?? 0
-        if (count > 0) activeLevels.add(level)
-        row[level] = count
-      }
-      return row
-    })
-    const levels = LOG_LEVEL_ORDER.filter((level) => activeLevels.has(level))
-    return { rows: mapped, levels }
-  }, [data])
+  const { rows, levels } = useTrendsChart(data)
   return (
     <Card className='gap-4'>
       <CardHeader>

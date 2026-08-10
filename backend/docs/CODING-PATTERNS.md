@@ -995,12 +995,109 @@ describe('CreateLogFileController (E2E)', () => {
 | **Test file not co-located with source** | **Place `.test.ts` / `.e2e-spec.ts` next to the source file** |
 | **Test file named after a scenario, not the component** | **Name after component: `dashboard.controller.e2e-spec.ts`, not `dashboard-empty-state.e2e-spec.ts`** |
 
+---
+
+## Immutable Entity Pattern
+
+**Rule**: Domain entities MUST be immutable. All mutations return new instances. Use `Props` utility type for type-safe creation.
+
+### Entity Base Class
+
+```typescript
+// src/core/domain/entity.ts
+export abstract class Entity {
+  abstract readonly id: string
+  abstract readonly createdAt: Date
+  abstract readonly updatedAt: Date | null
+}
+```
+
+### Props Utility Type
+
+```typescript
+// src/shared/types/props.ts
+import { PrimitiveAndDates } from './primitive-and-dates'
+
+export type Props<T> = Omit<PrimitiveAndDates<T>, 'id' | 'createdAt' | 'updatedAt'>
+```
+
+### Entity Implementation Pattern
+
+```typescript
+// ✅ GOOD: Immutable entity with Props
+export interface LogEntryProps {
+  logFileId: string
+  level: LogLevel
+  timestamp: Date
+  source: string | null
+  message: string
+  rawLine: string
+  metadata: Record<string, unknown> | null
+  createdAt: Date
+  updatedAt: Date | null
+}
+
+export type LogEntrySnapshot = Entity & LogEntryProps
+
+type CreateLogEntryInput = Props<LogEntryProps> & { id?: string }
+
+export class LogEntry implements Entity {
+  readonly id: string
+  readonly logFileId: string
+  readonly level: LogLevel
+  readonly timestamp: Date
+  readonly source: string | null
+  readonly message: string
+  readonly rawLine: string
+  readonly metadata: Record<string, unknown> | null
+  readonly createdAt: Date
+  readonly updatedAt: Date | null
+
+  private constructor (input: LogEntrySnapshot) { ... }
+
+  static create (input: CreateLogEntryInput): LogEntry { ... }
+
+  toJSON (): LogEntrySnapshot { ... }
+}
+```
+
+### Immutable Mutation Pattern
+
+```typescript
+// ✅ GOOD: Immutable mutations return new instances
+stage (checksum: string, sizeBytes: number): LogFile {
+  return new LogFile({ ...this.toJSON(), checksum, sizeBytes, updatedAt: new Date() })
+}
+
+startProcessing (): LogFile {
+  if (this.status === 'COMPLETED' || this.status === 'PROCESSING') {
+    throw new Error('Cannot process a completed or already processing log file')
+  }
+  return new LogFile({ ...this.toJSON(), status: 'PROCESSING', updatedAt: new Date() })
+}
+
+// ✅ Usage: reassign to new instance
+logFile = logFile.stage(checksum, size)
+logFile = logFile.startProcessing()
+logFile = logFile.recordProgress(total, processed, failed)
+logFile = logFile.complete(total, processed, failed, new Date())
+```
+
+### Anti-Patterns
+
+| Anti-Pattern | Fix |
+| --- | --- |
+| **Private `props` object with getter methods** | Use `readonly` properties directly on the class |
+| **Mutating `this.props` in methods** | Return new instance with spread: `new Entity({ ...this.toJSON(), ...changes })` |
+| **Separate `create` and `restore` methods with different signatures** | Single `static create(input: Props<PropsType> & { id?: string })` handles both |
+| **Separate `Props` interface and `Snapshot` type** | `type Snapshot = Entity & Props` for restore, `type CreateInput = Props<Props> & { id?: string }` for create |
+
 ### Benefits
 
 | Benefit | Explanation |
 | --- | --- |
-| **Single source of truth** | All tests for a component in one place — easy to find, run, maintain |
-| **Clear ownership** | One file = one component's contract |
-| **Parallelization** | Vitest runs each file in parallel; one file per component maximizes parallelism |
-| **No duplicate setup** | Shared `beforeAll`/`afterAll` per component, not duplicated across files |
-| **Discoverability** | `find . -name '*.test.ts'` reveals exact test coverage |
+| **Immutability** | No accidental mutations; safe for concurrent use |
+| **Type Safety** | `Props<T>` ensures create input has all required fields minus generated ones |
+| **Single Source** | One `create` method handles both new and restored entities |
+| **Type Inference** | `Props<T>` automatically derives from entity interface |
+| **Testability** | Immutable objects are trivial to test — no setup/teardown for mutation |
