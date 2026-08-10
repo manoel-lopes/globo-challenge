@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
 import type { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
-import { LogFileParser } from '@/infra/log-processing/log-file.parser'
+import { LogFileParser } from '@/infra/log-processing/log-file/log-file.parser'
 import { InMemoryLogEntriesRepository } from '@/infra/persistence/repositories/in-memory/in-memory-log-entries.repository'
 import { InMemoryLogFilesRepository } from '@/infra/persistence/repositories/in-memory/in-memory-log-files.repository'
+import { LogFile } from '@/domain/enterprise/entities/log-file/log-file.entity'
 import { ProcessLogFileUseCase } from './process-log-file.usecase'
 
 describe('ProcessLogFileUseCase', () => {
@@ -86,8 +87,15 @@ describe('ProcessLogFileUseCase', () => {
       filename: 'retry.log',
       status: 'PENDING',
     })
-    logFile.fail(new Date())
-    await logFilesRepository.save(logFile)
+    const failed = LogFile.create(
+      {
+        ...logFile.toJSON(),
+        status: 'FAILED',
+        processedAt: new Date(),
+      },
+      logFile.id
+    )
+    await logFilesRepository.save(failed)
 
     const filePath = join(tempDir, `${logFile.id}.upload`)
     await writeFile(filePath, 'ERROR recovered\n')
