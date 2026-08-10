@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common'
-import { LogFileProcessorPort } from '@/domain/application/ports/log-file-processor.port'
+import { LogFileParser } from '@/domain/application/ports/log-file-processor.port'
 import { LogProcessingQueue } from '@/domain/application/queues/log-processing.queue'
 import { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
 import { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
@@ -22,7 +22,7 @@ import { RepositoriesModule } from '@/infra/persistence/repositories/repositorie
       provide: ImportLogFileUseCase,
       useFactory: (
         logFilesRepository: LogFilesRepository,
-        fileProcessor: LogFileProcessorPort,
+        fileProcessor: LogFileParser,
         processLogFileUseCase: ProcessLogFileUseCase,
         logProcessingQueue: LogProcessingQueue
       ) => new ImportLogFileUseCase(
@@ -33,7 +33,7 @@ import { RepositoriesModule } from '@/infra/persistence/repositories/repositorie
       ),
       inject: [
         LogFilesRepository,
-        LogFileProcessorPort,
+        LogFileParser,
         ProcessLogFileUseCase,
         LogProcessingQueue,
       ],

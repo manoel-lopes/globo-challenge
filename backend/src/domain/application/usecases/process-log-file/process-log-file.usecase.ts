@@ -3,14 +3,14 @@ import {
   type AppLogger,
   noopAppLogger,
 } from '@/domain/application/ports/app-logger.port'
-import type { LogFileProcessorPort } from '@/domain/application/ports/log-file-processor.port'
+import type { LogFileParser } from '@/domain/application/ports/log-file-processor.port'
 import type { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
 import type { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
 import {
   type IngestBatchesResult,
   LogEntryBatchIngestor,
 } from '@/domain/application/services/log-entry-batch-ingestor/log-entry-batch-ingestor.service'
-import type { LogFile } from '@/domain/enterprise/entities/log-file/log-file.entity'
+import { LogFile } from '@/domain/enterprise/entities/log-file/log-file.entity'
 import { ResourceNotFoundError } from '@/shared/application/errors/resource-not-found.error'
 
 export type ProcessLogFileRequest = {
@@ -20,14 +20,14 @@ export type ProcessLogFileRequest = {
 }
 
 export class ProcessLogFileUseCase implements UseCase {
-  private readonly fileProcessor: LogFileProcessorPort
+  private readonly fileProcessor: LogFileParser
   private readonly logger: AppLogger
   private readonly ingestor: LogEntryBatchIngestor
 
   constructor (
     private readonly logFilesRepository: LogFilesRepository,
     private readonly logEntriesRepository: LogEntriesRepository,
-    fileProcessor: LogFileProcessorPort,
+    fileProcessor: LogFileParser,
     logger: AppLogger = noopAppLogger,
     ingestor: LogEntryBatchIngestor = new LogEntryBatchIngestor(
       fileProcessor,
@@ -40,7 +40,7 @@ export class ProcessLogFileUseCase implements UseCase {
   }
 
   async execute (req: ProcessLogFileRequest): Promise<LogFile> {
-    const logFile = await this.logFilesRepository.claimForProcessing(req.logFileId)
+    let logFile = await this.logFilesRepository.claimForProcessing(req.logFileId)
     if (!logFile) {
       const existing = await this.logFilesRepository.findById(req.logFileId)
       if (!existing) {
@@ -67,15 +67,30 @@ export class ProcessLogFileUseCase implements UseCase {
         filePath: req.filePath,
         importedAt: new Date(),
         onProgress: async (totalLines, processedLines, failedLines) => {
-          logFile.recordProgress(totalLines, processedLines, failedLines)
+          const current = logFile!
+          logFile = LogFile.create(
+            {
+              ...current.toJSON(),
+              totalLines,
+              processedLines,
+              failedLines,
+            },
+            current.id
+          )
           await this.logFilesRepository.save(logFile)
         },
       })
-      logFile.complete(
-        result.totalLines,
-        result.processedLines,
-        result.failedLines,
-        new Date()
+      const prev = logFile
+      logFile = LogFile.create(
+        {
+          ...prev.toJSON(),
+          status: 'COMPLETED',
+          totalLines: result.totalLines,
+          processedLines: result.processedLines,
+          failedLines: result.failedLines,
+          processedAt: new Date(),
+        },
+        prev.id
       )
       const completed = await this.logFilesRepository.save(logFile)
       this.logger.log(
@@ -84,7 +99,18 @@ export class ProcessLogFileUseCase implements UseCase {
       succeeded = true
       return completed
     } catch (error) {
-      logFile.fail(new Date(), result)
+      const before = logFile
+      logFile = LogFile.create(
+        {
+          ...before.toJSON(),
+          status: 'FAILED',
+          processedAt: new Date(),
+          totalLines: result.totalLines ?? before.totalLines,
+          processedLines: result.processedLines ?? before.processedLines,
+          failedLines: result.failedLines ?? before.failedLines,
+        },
+        before.id
+      )
       await this.logFilesRepository.save(logFile)
       this.logger.error(
         `Failed processing log file ${req.logFileId}: lines=${result.processedLines} failed=${result.failedLines} durationMs=${Date.now() - startedAt}`

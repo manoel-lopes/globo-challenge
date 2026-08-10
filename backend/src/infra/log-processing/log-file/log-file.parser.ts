@@ -7,7 +7,6 @@ import { createInterface } from 'node:readline'
 import type { Readable } from 'node:stream'
 import { Readable as NodeReadable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import type { LogFileProcessorPort } from '@/domain/application/ports/log-file-processor.port'
 import type { ClassifiedLogLine } from '@/domain/enterprise/services/log-classification/classified-log-line'
 import { LogClassifierRegistry } from '@/domain/enterprise/services/log-classification/log-classifier.registry'
 
@@ -17,7 +16,14 @@ export type ParseLogStreamResult = {
   failedLines: number
 }
 
-export class LogFileParser implements LogFileProcessorPort {
+export type ParsedLogBatch = {
+  batch: ClassifiedLogLine[]
+  totalLines: number
+  failedLines: number
+  done: boolean
+}
+
+export class LogFileParser {
   constructor (private readonly classifier = new LogClassifierRegistry()) {}
 
   async parseStream (

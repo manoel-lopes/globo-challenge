@@ -1,4 +1,4 @@
-import type { LogFileProcessorPort } from '@/domain/application/ports/log-file-processor.port'
+import type { LogFileParser } from '@/domain/application/ports/log-file-processor.port'
 import type { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
 
 export type IngestBatchesRequest = {
@@ -24,7 +24,7 @@ export class LogEntryBatchIngestor {
   private readonly PROGRESS_UPDATE_INTERVAL_MS = 500
 
   constructor (
-    private readonly fileProcessor: LogFileProcessorPort,
+    private readonly fileProcessor: LogFileParser,
     private readonly logEntriesRepository: LogEntriesRepository
   ) {}
 

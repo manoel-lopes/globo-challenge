@@ -8,7 +8,7 @@ export type ParsedLogBatch = {
   done: boolean
 }
 
-export type LogFileProcessorPort = {
+export type LogFileParser = {
   iterateBatches(
     stream: Readable,
     batchSize: number,
@@ -23,4 +23,4 @@ export type LogFileProcessorPort = {
   defaultTempDir(): string
 }
 
-export const LogFileProcessorPort = Symbol('LogFileProcessorPort')
+export const LogFileParser = Symbol('LogFileParser')

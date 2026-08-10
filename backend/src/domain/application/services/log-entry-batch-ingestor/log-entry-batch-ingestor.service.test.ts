@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { LogEntriesRepository } from '@/domain/application/repositories/log-entries.repository'
-import { LogFileParser } from '@/infra/log-processing/log-file.parser'
+import { LogFileParser } from '@/infra/log-processing/log-file/log-file.parser'
 import { InMemoryLogEntriesRepository } from '@/infra/persistence/repositories/in-memory/in-memory-log-entries.repository'
 import { LogEntryBatchIngestor } from './log-entry-batch-ingestor.service'
 
