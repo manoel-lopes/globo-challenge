@@ -12,15 +12,58 @@ export class InMemoryLogFilesRepository implements LogFilesRepository {
   private items: LogFile[] = []
 
   async create (data: LogFileCreateInput): Promise<LogFile> {
-    const logFile = LogFile.create({ filename: data.filename })
-    if (data.status && data.status !== 'PENDING') {
-      if (data.status === 'FAILED') logFile.fail(new Date())
-      else if (data.status === 'PROCESSING') logFile.startProcessing()
-      else if (data.status === 'COMPLETED') {
-        logFile.startProcessing()
-        logFile.complete(0, 0, 0, new Date())
-      }
+    if (!data.status || data.status === 'PENDING') {
+      const logFile = LogFile.create({
+        filename: data.filename,
+        status: 'PENDING',
+        checksum: null,
+        sizeBytes: null,
+        totalLines: 0,
+        processedLines: 0,
+        failedLines: 0,
+        processedAt: null,
+      })
+      this.items.push(logFile)
+      return logFile
     }
+    if (data.status === 'FAILED') {
+      const logFile = LogFile.create({
+        filename: data.filename,
+        status: 'FAILED',
+        checksum: null,
+        sizeBytes: null,
+        totalLines: 0,
+        processedLines: 0,
+        failedLines: 0,
+        processedAt: new Date(),
+      })
+      this.items.push(logFile)
+      return logFile
+    }
+    if (data.status === 'PROCESSING') {
+      const logFile = LogFile.create({
+        filename: data.filename,
+        status: 'PROCESSING',
+        checksum: null,
+        sizeBytes: null,
+        totalLines: 0,
+        processedLines: 0,
+        failedLines: 0,
+        processedAt: null,
+      })
+      this.items.push(logFile)
+      return logFile
+    }
+    const logFile = LogFile.create({
+      filename: data.filename,
+      status: 'COMPLETED',
+      checksum: null,
+      sizeBytes: null,
+      totalLines: 0,
+      processedLines: 0,
+      failedLines: 0,
+      processedAt: new Date(),
+    })
     this.items.push(logFile)
     return logFile
   }
@@ -72,8 +115,20 @@ export class InMemoryLogFilesRepository implements LogFilesRepository {
     if (existing.status !== 'PENDING' && existing.status !== 'FAILED') {
       return null
     }
-    existing.startProcessing()
-    return this.save(existing)
+    const claimed = LogFile.create(
+      {
+        filename: existing.filename,
+        status: 'PROCESSING',
+        checksum: existing.checksum,
+        sizeBytes: existing.sizeBytes,
+        totalLines: existing.totalLines,
+        processedLines: existing.processedLines,
+        failedLines: existing.failedLines,
+        processedAt: existing.processedAt,
+      },
+      existing.id
+    )
+    return this.save(claimed)
   }
 
   async update (id: string, data: LogFileProgressUpdate): Promise<LogFile> {
@@ -81,18 +136,19 @@ export class InMemoryLogFilesRepository implements LogFilesRepository {
     if (!existing) {
       throw new Error(`LogFile ${id} not found`)
     }
-    const restored = LogFile.restore({
-      ...existing.toJSON(),
-      ...data,
-      checksum: data.checksum ?? existing.checksum,
-      sizeBytes: data.sizeBytes ?? existing.sizeBytes,
-      totalLines: data.totalLines ?? existing.totalLines,
-      processedLines: data.processedLines ?? existing.processedLines,
-      failedLines: data.failedLines ?? existing.failedLines,
-      status: data.status ?? existing.status,
-      processedAt: data.processedAt !== undefined ? data.processedAt : existing.processedAt,
-      updatedAt: new Date(),
-    })
+    const restored = LogFile.create(
+      {
+        filename: existing.filename,
+        status: data.status ?? existing.status,
+        checksum: data.checksum ?? existing.checksum,
+        sizeBytes: data.sizeBytes ?? existing.sizeBytes,
+        totalLines: data.totalLines ?? existing.totalLines,
+        processedLines: data.processedLines ?? existing.processedLines,
+        failedLines: data.failedLines ?? existing.failedLines,
+        processedAt: data.processedAt !== undefined ? data.processedAt : existing.processedAt,
+      },
+      existing.id
+    )
     return this.save(restored)
   }
 
