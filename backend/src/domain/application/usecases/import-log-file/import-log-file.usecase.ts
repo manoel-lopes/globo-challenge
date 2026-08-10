@@ -1,9 +1,9 @@
 import type { Readable } from 'node:stream'
 import type { UseCase } from '@/core/domain/application/use-case'
-import type { LogFileProcessorPort } from '@/domain/application/ports/log-file-processor.port'
+import type { LogFileParser } from '@/domain/application/ports/log-file-processor.port'
 import type { LogProcessingQueue } from '@/domain/application/queues/log-processing.queue'
 import type { LogFilesRepository } from '@/domain/application/repositories/log-files.repository'
-import type { LogFile } from '@/domain/enterprise/entities/log-file/log-file.entity'
+import { LogFile } from '@/domain/enterprise/entities/log-file/log-file.entity'
 import { FileSizeLimit } from '@/domain/enterprise/value-objects/file-size-limit/file-size-limit.vo'
 import { LogFileName } from '@/domain/enterprise/value-objects/log-file/log-file-name.vo'
 import { ProcessLogFileUseCase } from '../process-log-file/process-log-file.usecase'
@@ -28,7 +28,7 @@ export type ImportLogFileRequest = {
 export class ImportLogFileUseCase implements UseCase {
   constructor (
     private readonly logFilesRepository: LogFilesRepository,
-    private readonly fileProcessor: LogFileProcessorPort,
+    private readonly fileProcessor: LogFileParser,
     private readonly processLogFileUseCase: ProcessLogFileUseCase,
     private readonly logProcessingQueue: LogProcessingQueue
   ) {}
@@ -47,7 +47,7 @@ export class ImportLogFileUseCase implements UseCase {
     if (typeof req.fileSize === 'number' && maxSize.isExceededBy(req.fileSize)) {
       throw new FileTooLargeError(req.maxSize)
     }
-    const logFile = await this.logFilesRepository.create({
+    let logFile = await this.logFilesRepository.create({
       filename: req.filename,
       status: 'PENDING',
     })
@@ -65,7 +65,19 @@ export class ImportLogFileUseCase implements UseCase {
         await this.discardUpload(logFile.id, filePath)
         throw new DuplicateLogFileError(duplicate.id)
       }
-      logFile.stage(checksum, sizeBytes)
+      logFile = LogFile.create(
+        {
+          filename: logFile.filename,
+          status: logFile.status,
+          checksum,
+          sizeBytes,
+          totalLines: logFile.totalLines,
+          processedLines: logFile.processedLines,
+          failedLines: logFile.failedLines,
+          processedAt: logFile.processedAt,
+        },
+        logFile.id
+      )
       let spooled: LogFile
       try {
         spooled = await this.logFilesRepository.save(logFile)
@@ -109,7 +121,7 @@ export class ImportLogFileUseCase implements UseCase {
         throw error
       }
       const current = await this.logFilesRepository.findById(logFile.id)
-      if (current?.isActiveUpload()) {
+      if (current && (current.status === 'PENDING' || current.status === 'PROCESSING')) {
         await this.failAndCleanup(current, filePath)
       }
       throw error
@@ -117,10 +129,22 @@ export class ImportLogFileUseCase implements UseCase {
   }
 
   private async failAndCleanup (logFile: LogFile, filePath: string): Promise<void> {
-    logFile.fail(new Date())
+    const failed = LogFile.create(
+      {
+        filename: logFile.filename,
+        status: 'FAILED',
+        checksum: logFile.checksum,
+        sizeBytes: logFile.sizeBytes,
+        totalLines: logFile.totalLines,
+        processedLines: logFile.processedLines,
+        failedLines: logFile.failedLines,
+        processedAt: new Date(),
+      },
+      logFile.id
+    )
     await Promise.all([
       this.fileProcessor.removeFile(filePath),
-      this.logFilesRepository.save(logFile),
+      this.logFilesRepository.save(failed),
     ])
   }
 
