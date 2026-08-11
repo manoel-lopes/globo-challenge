@@ -999,50 +999,51 @@ describe('CreateLogFileController (E2E)', () => {
 
 ## Immutable Entity Pattern
 
-**Rule**: Domain entities MUST be immutable. All mutations return new instances. Use `Props` utility type for type-safe creation.
+**Rule**: Domain entities extend the `Entity` base class and are immutable. The base class owns `id`, `createdAt`, and `updatedAt`; subclasses declare only their own domain fields as `readonly`. The ONLY method on an entity that returns a new instance is `static create(props, id?)`. State transitions live at the call site: callers build the next props object and call `create` again.
 
 ### Entity Base Class
 
 ```typescript
 // src/core/domain/entity.ts
+import { v7 as uuidv7 } from 'uuid'
+
 export abstract class Entity {
-  abstract readonly id: string
-  abstract readonly createdAt: Date
-  abstract readonly updatedAt: Date | null
+  readonly id: string
+  readonly createdAt: Date
+  readonly updatedAt: Date | null
+
+  protected constructor (id?: string) {
+    this.id = id ?? uuidv7()
+  }
 }
 ```
+
+The base class is the single source of truth for identity and timestamps. Subclasses never reassign `id`, `createdAt`, or `updatedAt`; they only read them via `toJSON()`.
 
 ### Props Utility Type
 
 ```typescript
 // src/shared/types/props.ts
-import { PrimitiveAndDates } from './primitive-and-dates'
+type NonMethodKeys<T> = {
+  [K in keyof T]: T[K] extends (...args: never[]) => unknown
+    ? never
+    : K
+}[keyof T]
 
-export type Props<T> = Omit<PrimitiveAndDates<T>, 'id' | 'createdAt' | 'updatedAt'>
+export type Props<T> = Omit<Pick<T, NonMethodKeys<T>>, 'id' | 'createdAt' | 'updatedAt'>
 ```
+
+`Props<T>` derives every non-method field declared on the entity class (including object-valued fields such as `metadata: Record<string, unknown> | null`) and removes the three base-class fields. There is no separate `Snapshot` or `CreateInput` type — `Props<T>` is the single input shape for `create`.
 
 ### Entity Implementation Pattern
 
 ```typescript
-// ✅ GOOD: Immutable entity with Props
-export interface LogEntryProps {
-  logFileId: string
-  level: LogLevel
-  timestamp: Date
-  source: string | null
-  message: string
-  rawLine: string
-  metadata: Record<string, unknown> | null
-  createdAt: Date
-  updatedAt: Date | null
-}
+// ✅ GOOD: Entity extends Entity, Props<T> derives the create input
+export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL' | 'UNKNOWN'
 
-export type LogEntrySnapshot = Entity & LogEntryProps
+export type LogEntryProps = Props<LogEntry>
 
-type CreateLogEntryInput = Props<LogEntryProps> & { id?: string }
-
-export class LogEntry implements Entity {
-  readonly id: string
+export class LogEntry extends Entity {
   readonly logFileId: string
   readonly level: LogLevel
   readonly timestamp: Date
@@ -1050,54 +1051,91 @@ export class LogEntry implements Entity {
   readonly message: string
   readonly rawLine: string
   readonly metadata: Record<string, unknown> | null
-  readonly createdAt: Date
-  readonly updatedAt: Date | null
 
-  private constructor (input: LogEntrySnapshot) { ... }
+  private constructor (props: LogEntryProps, id?: string) {
+    super(id)
+    Object.assign(this, props)
+  }
 
-  static create (input: CreateLogEntryInput): LogEntry { ... }
+  static create (props: LogEntryProps, id?: string): LogEntry {
+    return new LogEntry(props, id)
+  }
 
-  toJSON (): LogEntrySnapshot { ... }
+  toJSON () {
+    return {
+      id: this.id,
+      logFileId: this.logFileId,
+      level: this.level,
+      timestamp: this.timestamp,
+      source: this.source,
+      message: this.message,
+      rawLine: this.rawLine,
+      metadata: this.metadata,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    }
+  }
 }
 ```
 
-### Immutable Mutation Pattern
+### State Transitions Live at the Call Site
+
+Entities expose no transition methods. Callers (use cases, repositories, tests) build the next props object — usually by spreading `entity.toJSON()` and overriding the changed fields — and call `create` again with the existing `id` so identity is preserved.
 
 ```typescript
-// ✅ GOOD: Immutable mutations return new instances
-stage (checksum: string, sizeBytes: number): LogFile {
-  return new LogFile({ ...this.toJSON(), checksum, sizeBytes, updatedAt: new Date() })
-}
+// ✅ GOOD: caller drives the state change via create
+logFile = LogFile.create(
+  { ...logFile.toJSON(), checksum, sizeBytes },
+  logFile.id
+)
 
-startProcessing (): LogFile {
-  if (this.status === 'COMPLETED' || this.status === 'PROCESSING') {
-    throw new Error('Cannot process a completed or already processing log file')
-  }
-  return new LogFile({ ...this.toJSON(), status: 'PROCESSING', updatedAt: new Date() })
-}
+logFile = LogFile.create(
+  { ...logFile.toJSON(), status: 'PROCESSING' },
+  logFile.id
+)
 
-// ✅ Usage: reassign to new instance
-logFile = logFile.stage(checksum, size)
-logFile = logFile.startProcessing()
-logFile = logFile.recordProgress(total, processed, failed)
-logFile = logFile.complete(total, processed, failed, new Date())
+logFile = LogFile.create(
+  { ...logFile.toJSON(), totalLines, processedLines, failedLines },
+  logFile.id
+)
+
+logFile = LogFile.create(
+  {
+    ...logFile.toJSON(),
+    status: 'COMPLETED',
+    totalLines,
+    processedLines,
+    failedLines,
+    processedAt,
+  },
+  logFile.id
+)
+
+logFile = LogFile.create(
+  { ...logFile.toJSON(), status: 'FAILED', processedAt },
+  logFile.id
+)
 ```
+
+Guards that previously lived on the entity (for example, "cannot start processing a `COMPLETED` or `PROCESSING` file") are enforced where the claim happens — the repository's `claimForProcessing` filters by status before constructing the next state.
 
 ### Anti-Patterns
 
 | Anti-Pattern | Fix |
 | --- | --- |
-| **Private `props` object with getter methods** | Use `readonly` properties directly on the class |
-| **Mutating `this.props` in methods** | Return new instance with spread: `new Entity({ ...this.toJSON(), ...changes })` |
-| **Separate `create` and `restore` methods with different signatures** | Single `static create(input: Props<PropsType> & { id?: string })` handles both |
-| **Separate `Props` interface and `Snapshot` type** | `type Snapshot = Entity & Props` for restore, `type CreateInput = Props<Props> & { id?: string }` for create |
+| **`implements Entity` instead of `extends Entity`** | `extends Entity` so the base class can own `id`/`createdAt`/`updatedAt` |
+| **A `restore`/`rehydrate`/`newPending` factory alongside `create`** | Single `static create(props, id?)` handles new, restored, and transitioned entities |
+| **Transition methods on the entity that return a new instance** | Move transitions to the caller: spread `toJSON()`, override fields, call `create` with the same `id` |
+| **Separate `Props` interface and `Snapshot` type** | `type Props<T> = ...` derives both create and restore input from the class shape |
+| **Free helper functions next to the entity** | Keep all logic inside class methods; mappers put helpers in `private static` methods |
+| **Passing `createdAt`/`updatedAt` through `create`** | The base `Entity` owns timestamps; never thread them through subclass props |
 
 ### Benefits
 
 | Benefit | Explanation |
 | --- | --- |
 | **Immutability** | No accidental mutations; safe for concurrent use |
-| **Type Safety** | `Props<T>` ensures create input has all required fields minus generated ones |
-| **Single Source** | One `create` method handles both new and restored entities |
-| **Type Inference** | `Props<T>` automatically derives from entity interface |
+| **Type Safety** | `Props<T>` derives the create input from the class shape, including object-valued fields |
+| **Single Source** | One `create` method per entity handles new, restored, and transitioned instances |
+| **Identity Preservation** | Callers pass the existing `id` into `create`, so transitions keep the same identity |
 | **Testability** | Immutable objects are trivial to test — no setup/teardown for mutation |
